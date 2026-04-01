@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Memory{% endblock %}
+{% block content %}
+<div>
+    <div class="flex items-baseline justify-between mb-10 fade-up">
+        <div>
+            <h1 class="font-display text-3xl font-semibold text-ink-50 tracking-tight">Memory</h1>
+            <p class="text-ink-500 text-sm mt-1">{{ stats.total }} memories across {{ stats.by_project|length }} projects
+                {% if stats.stale_count %}<span class="text-amber-400/70 ml-1">&middot; {{ stats.stale_count }} stale</span>{% endif %}
+            </p>
+        </div>
+        <input type="text" id="mem-search" placeholder="Filter memories..."
+               class="bg-transparent text-ink-200 placeholder-ink-500 px-3 py-1.5 text-sm border border-ink-700/50 rounded-md w-52 focus:outline-none focus:border-copper-500/60 transition-all"
+               oninput="filterMemories()">
+    </div>
+
+    <!-- Type filters -->
+    <div class="flex gap-2 mb-8 fade-up" id="type-filters">
+        <button onclick="setFilter('all')" class="filter-btn btn-action btn-primary" data-filter="all">All</button>
+        <button onclick="setFilter('user')" class="filter-btn btn-action" data-filter="user">User</button>
+        <button onclick="setFilter('feedback')" class="filter-btn btn-action" data-filter="feedback">Feedback</button>
+        <button onclick="setFilter('project')" class="filter-btn btn-action" data-filter="project">Project</button>
+        <button onclick="setFilter('reference')" class="filter-btn btn-action" data-filter="reference">Reference</button>
+    </div>
+
+    {% for project, mems in memories_by_project.items() %}
+    <section class="mb-10">
+        <h2 class="text-ink-400 text-xs font-mono uppercase tracking-wider mb-4 fade-up">{{ project }}</h2>
+        <div class="grid gap-3">
+            {% for mem in mems %}
+            <div class="memory-card border border-ink-800/40 rounded-lg p-4 fade-up hover:border-copper-500/20 transition-colors cursor-pointer"
+                 data-type="{{ mem.type }}" data-name="{{ mem.name|lower }}" data-desc="{{ mem.description|lower }}"
+                 onclick="this.querySelector('.mem-body').classList.toggle('hidden')">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-ink-100 font-medium text-sm">{{ mem.name }}</span>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded font-medium
+                                {% if mem.type == 'user' %}bg-copper-500/15 text-copper-400
+                                {% elif mem.type == 'feedback' %}bg-sage-400/15 text-sage-400
+                                {% elif mem.type == 'project' %}bg-blue-400/15 text-blue-400
+                                {% elif mem.type == 'reference' %}bg-purple-400/15 text-purple-400
+                                {% else %}bg-ink-700/40 text-ink-400{% endif %}">{{ mem.type }}</span>
+                        </div>
+                        <p class="text-ink-400 text-xs truncate">{{ mem.description }}</p>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="w-2 h-2 rounded-full
+                            {% if mem.staleness == 'fresh' %}bg-sage-400
+                            {% elif mem.staleness == 'aging' %}bg-amber-400
+                            {% else %}bg-red-400{% endif %}" title="{{ mem.staleness_days }}d old"></span>
+                        <span class="text-ink-600 text-xs">{{ mem.staleness_days }}d</span>
+                    </div>
+                </div>
+                <div class="mem-body hidden mt-3 pt-3 border-t border-ink-800/30">
+                    <div class="md-render text-ink-300 text-sm">{{ mem.content }}</div>
+                    <p class="text-ink-600 text-xs mt-2 font-mono">{{ mem.path }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+
+    {% if not memories_by_project %}
+    <div class="border border-ink-800/30 rounded-lg p-8 text-center fade-up">
+        <p class="text-ink-500">No memory files found.</p>
+        <p class="text-ink-600 text-sm mt-1">Claude Code stores memories in ~/.claude/projects/*/memory/</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+let activeFilter = 'all';
+function setFilter(type) {
+    activeFilter = type;
+    document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.toggle('btn-primary', b.dataset.filter === type);
+    });
+    filterMemories();
+}
+function filterMemories() {
+    const q = document.getElementById('mem-search').value.toLowerCase();
+    document.querySelectorAll('.memory-card').forEach(card => {
+        const matchType = activeFilter === 'all' || card.dataset.type === activeFilter;
+        const matchSearch = !q || card.dataset.name.includes(q) || card.dataset.desc.includes(q);
+        card.style.display = matchType && matchSearch ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

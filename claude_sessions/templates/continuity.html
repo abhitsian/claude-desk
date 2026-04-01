@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Where Was I?{% endblock %}
+{% block content %}
+<div>
+    <div class="mb-10 fade-up">
+        <h1 class="font-display text-3xl font-semibold text-ink-50 tracking-tight">Where Was I?</h1>
+        <p class="text-ink-500 text-sm mt-1">{{ summary.total_open_threads }} open threads{% if summary.blocked_items %} &middot; {{ summary.blocked_items|length }} blocked{% endif %}</p>
+    </div>
+
+    <!-- Suggested next -->
+    {% if summary.suggested_next %}
+    <section class="mb-10 fade-up">
+        <div class="border border-copper-500/30 rounded-lg p-5 bg-copper-500/[0.04]">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-copper-400 text-xs font-semibold uppercase tracking-wider">Continue</span>
+            </div>
+            <h3 class="font-display text-lg font-semibold text-ink-100 mb-2">{{ summary.suggested_next.topic_label }}</h3>
+            <p class="text-ink-400 text-sm mb-3">{{ summary.suggested_next.session_count }} sessions &middot; last active {{ summary.suggested_next.days_since_active }}d ago</p>
+            {% if summary.suggested_next.sessions %}
+            <a href="/sessions/{{ summary.suggested_next.sessions[0].session_id }}" class="btn-action btn-primary">
+                Resume latest &rarr;
+            </a>
+            {% endif %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Active threads -->
+    {% if summary.active_threads %}
+    <section class="mb-10">
+        <h2 class="font-display text-lg font-semibold text-ink-100 mb-5 fade-up flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-sage-400"></span> Active Threads
+        </h2>
+        <div class="grid gap-3">
+            {% for thread in summary.active_threads %}
+            <div class="border border-ink-800/40 rounded-lg p-4 fade-up hover:border-copper-500/20 transition-colors">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <h3 class="text-ink-100 font-medium text-sm mb-1">{{ thread.topic_label }}</h3>
+                        <p class="text-ink-500 text-xs">{{ thread.session_count }} sessions &middot; {{ thread.days_since_active }}d since last active</p>
+                    </div>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-sage-400/15 text-sage-400 font-medium">active</span>
+                </div>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    {% for s in thread.sessions[:5] %}
+                    <a href="/sessions/{{ s.session_id }}" class="text-xs text-copper-400/70 hover:text-copper-400 border border-ink-800/30 rounded px-2 py-1 transition-colors">
+                        {{ s.title }}
+                    </a>
+                    {% endfor %}
+                    {% if thread.sessions|length > 5 %}
+                    <span class="text-xs text-ink-600">+{{ thread.sessions|length - 5 }} more</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Blocked items -->
+    {% if summary.blocked_items %}
+    <section class="mb-10">
+        <h2 class="font-display text-lg font-semibold text-ink-100 mb-5 fade-up">Blocked Items</h2>
+        <div class="grid gap-3">
+            {% for item in summary.blocked_items %}
+            <div class="border border-amber-400/20 rounded-lg p-4 fade-up bg-amber-400/[0.03]">
+                <div class="flex items-start justify-between mb-2">
+                    <a href="/sessions/{{ item.session_id }}" class="text-ink-100 font-medium text-sm hover:text-copper-400 transition-colors">{{ item.session_title }}</a>
+                    <span class="text-ink-600 text-xs">{{ item.timestamp[:10] }}</span>
+                </div>
+                <blockquote class="text-ink-400 text-xs border-l-2 border-amber-400/30 pl-3 italic">{{ item.blocked_text }}</blockquote>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Stale threads -->
+    {% if summary.stale_threads %}
+    <section class="mb-10">
+        <details class="fade-up">
+            <summary class="font-display text-lg font-semibold text-ink-400 mb-5 cursor-pointer hover:text-ink-200 transition-colors">
+                Stale Threads ({{ summary.stale_threads|length }})
+            </summary>
+            <div class="grid gap-3 mt-4">
+                {% for thread in summary.stale_threads %}
+                <div class="border border-ink-800/30 rounded-lg p-4">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h3 class="text-ink-300 font-medium text-sm">{{ thread.topic_label }}</h3>
+                            <p class="text-ink-600 text-xs mt-1">{{ thread.session_count }} sessions &middot; {{ thread.days_since_active }}d inactive</p>
+                        </div>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-400/70 font-medium">stale</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </details>
+    </section>
+    {% endif %}
+
+    {% if not summary.active_threads and not summary.stale_threads and not summary.blocked_items %}
+    <div class="border border-ink-800/30 rounded-lg p-8 text-center fade-up">
+        <p class="text-ink-500">No active work threads detected.</p>
+        <p class="text-ink-600 text-sm mt-1">Threads appear when multiple sessions share related topics.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

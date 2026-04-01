@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Decision Log{% endblock %}
+{% block content %}
+<div>
+    <div class="flex items-baseline justify-between mb-10 fade-up">
+        <div>
+            <h1 class="font-display text-3xl font-semibold text-ink-50 tracking-tight">Decision Log</h1>
+            <p class="text-ink-500 text-sm mt-1">{{ stats.total }} decisions extracted &middot;
+                {{ stats.by_status.get('active', 0) }} active
+                {% if stats.by_status.get('superseded', 0) %}&middot; {{ stats.by_status.get('superseded', 0) }} superseded{% endif %}
+            </p>
+        </div>
+        <div class="flex items-center gap-3">
+            <input type="text" id="dec-search" placeholder="Search decisions..."
+                   class="bg-transparent text-ink-200 placeholder-ink-500 px-3 py-1.5 text-sm border border-ink-700/50 rounded-md w-52 focus:outline-none focus:border-copper-500/60 transition-all"
+                   oninput="filterDecisions()">
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="flex gap-2 mb-4 fade-up">
+        <button onclick="setType('')" class="type-btn btn-action btn-primary" data-type="">All</button>
+        <button onclick="setType('recommendation')" class="type-btn btn-action" data-type="recommendation">Recommendation</button>
+        <button onclick="setType('direction')" class="type-btn btn-action" data-type="direction">Direction</button>
+        <button onclick="setType('decision')" class="type-btn btn-action" data-type="decision">Decision</button>
+        <button onclick="setType('conclusion')" class="type-btn btn-action" data-type="conclusion">Conclusion</button>
+        <button onclick="setType('tradeoff')" class="type-btn btn-action" data-type="tradeoff">Tradeoff</button>
+    </div>
+    <div class="flex gap-2 mb-8 fade-up">
+        <button onclick="setStatus('')" class="status-btn btn-action btn-primary" data-status="">All Status</button>
+        <button onclick="setStatus('active')" class="status-btn btn-action" data-status="active">Active</button>
+        <button onclick="setStatus('superseded')" class="status-btn btn-action" data-status="superseded">Superseded</button>
+        <button onclick="setStatus('reversed')" class="status-btn btn-action" data-status="reversed">Reversed</button>
+    </div>
+
+    <div id="decisions-list" class="grid gap-3">
+        {% for d in decisions %}
+        <div class="decision-card border border-ink-800/40 rounded-lg p-4 fade-up hover:border-copper-500/20 transition-colors"
+             data-type="{{ d.decision_type }}" data-status="{{ d.status }}" data-text="{{ d.decision_text[:200]|lower }}">
+            <div class="flex items-start justify-between gap-3 mb-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-[10px] px-1.5 py-0.5 rounded font-medium
+                        {% if d.decision_type == 'recommendation' %}bg-copper-500/15 text-copper-400
+                        {% elif d.decision_type == 'direction' %}bg-sage-400/15 text-sage-400
+                        {% elif d.decision_type == 'conclusion' %}bg-blue-400/15 text-blue-400
+                        {% elif d.decision_type == 'tradeoff' %}bg-amber-400/15 text-amber-400
+                        {% else %}bg-purple-400/15 text-purple-400{% endif %}">{{ d.decision_type }}</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded font-medium
+                        {% if d.status == 'active' %}bg-sage-400/10 text-sage-400
+                        {% elif d.status == 'superseded' %}bg-ink-700/40 text-ink-500
+                        {% else %}bg-red-400/10 text-red-400{% endif %}">{{ d.status }}</span>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                    {% if d.status == 'active' %}
+                    <button onclick="updateStatus({{ d.id }}, 'superseded', this)" class="btn-action text-xs">Supersede</button>
+                    <button onclick="updateStatus({{ d.id }}, 'reversed', this)" class="btn-action text-xs text-red-400/60">Reverse</button>
+                    {% endif %}
+                </div>
+            </div>
+            <p class="text-ink-200 text-sm leading-relaxed {% if d.status == 'superseded' %}line-through opacity-60{% endif %}">{{ d.decision_text }}</p>
+            <div class="flex items-center gap-3 mt-2 text-xs text-ink-600">
+                <a href="/sessions/{{ d.session_id }}" class="hover:text-copper-400 transition-colors">{{ d.session_id[:8] }}</a>
+                <span>{{ d.timestamp[:10] }}</span>
+            </div>
+            {% if d.context %}
+            <details class="mt-2">
+                <summary class="text-ink-600 text-xs cursor-pointer hover:text-ink-400 transition-colors">Context</summary>
+                <blockquote class="text-ink-400 text-xs border-l-2 border-ink-700/50 pl-3 mt-2 italic leading-relaxed">{{ d.context[:400] }}</blockquote>
+            </details>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if not decisions %}
+    <div class="border border-ink-800/30 rounded-lg p-8 text-center fade-up">
+        <p class="text-ink-500">No decisions extracted yet.</p>
+        <p class="text-ink-600 text-sm mt-1">Decisions are extracted when you visit session pages or run the archiver.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+let activeType = '', activeStatus = '';
+function setType(t) {
+    activeType = t;
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('btn-primary', b.dataset.type === t));
+    filterDecisions();
+}
+function setStatus(s) {
+    activeStatus = s;
+    document.querySelectorAll('.status-btn').forEach(b => b.classList.toggle('btn-primary', b.dataset.status === s));
+    filterDecisions();
+}
+function filterDecisions() {
+    const q = document.getElementById('dec-search').value.toLowerCase();
+    document.querySelectorAll('.decision-card').forEach(card => {
+        const matchType = !activeType || card.dataset.type === activeType;
+        const matchStatus = !activeStatus || card.dataset.status === activeStatus;
+        const matchQ = !q || card.dataset.text.includes(q);
+        card.style.display = matchType && matchStatus && matchQ ? '' : 'none';
+    });
+}
+function updateStatus(id, status, btn) {
+    fetch('/api/decisions/' + id + '/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: status })
+    }).then(r => r.json()).then(d => {
+        if (d.ok) location.reload();
+    });
+}
+</script>
+{% endblock %}

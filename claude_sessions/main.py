@@ -918,6 +918,187 @@ async def artifacts_list(request: Request, file_type: str = "", session_id: str 
     )
 
 
+# ===== Analytics Page =====
+
+
+@app.get("/analytics", response_class=HTMLResponse)
+async def analytics_page(request: Request, days: int = 30):
+    """Skill and tool performance analytics."""
+    from .services.skill_analytics import get_skill_stats
+    from .services.tool_analytics import get_tool_stats
+
+    all_sessions = _get_all_sessions_unified(limit=500)
+    live_sessions = parser.get_all_sessions()
+
+    skill_stats = get_skill_stats(live_sessions, parser, days=days)
+    tool_stats = get_tool_stats(live_sessions, parser, days=days)
+
+    return templates.TemplateResponse(
+        "analytics.html",
+        {
+            "request": request,
+            "skill_stats": skill_stats,
+            "tool_stats": tool_stats,
+            "days": days,
+        },
+    )
+
+
+# ===== Continuity Page =====
+
+
+@app.get("/continuity", response_class=HTMLResponse)
+async def continuity_page(request: Request):
+    """Where Was I? — work threads, blocked items, resumption."""
+    from .services.continuity import get_continuity_summary
+
+    sessions = _get_all_sessions_unified(limit=100)
+    live_sessions = parser.get_all_sessions()
+    summary = get_continuity_summary(live_sessions, parser)
+
+    return templates.TemplateResponse(
+        "continuity.html",
+        {"request": request, "summary": summary},
+    )
+
+
+# ===== Decisions Page =====
+
+
+@app.get("/decisions", response_class=HTMLResponse)
+async def decisions_page(request: Request):
+    """Decision log — extracted decisions across all sessions."""
+    from .data.decisions import get_all_decisions, get_decision_stats, extract_and_store
+
+    # Extract decisions from recent sessions that haven't been processed
+    live_sessions = parser.get_all_sessions()
+    for s in live_sessions[:30]:
+        try:
+            extract_and_store(s.session_id, parser)
+        except Exception:
+            continue
+
+    decisions = get_all_decisions(limit=200)
+    stats = get_decision_stats()
+
+    return templates.TemplateResponse(
+        "decisions.html",
+        {"request": request, "decisions": decisions, "stats": stats},
+    )
+
+
+@app.post("/api/decisions/{decision_id}/status")
+async def update_decision_status(decision_id: int, request: Request):
+    """Update a decision's status."""
+    from .data.decisions import update_status
+    body = await request.json()
+    new_status = body.get("status", "")
+    ok = update_status(decision_id, new_status)
+    return JSONResponse({"ok": ok})
+
+
+# ===== Memory Page =====
+
+
+@app.get("/memory", response_class=HTMLResponse)
+async def memory_page(request: Request):
+    """Memory explorer — browse all Claude Code memories."""
+    from .data.memory_reader import scan_all_memories, get_memory_stats
+    from collections import defaultdict
+
+    memories = scan_all_memories()
+    stats = get_memory_stats()
+
+    memories_by_project = defaultdict(list)
+    for m in memories:
+        memories_by_project[m["project"]].append(m)
+
+    return templates.TemplateResponse(
+        "memory.html",
+        {
+            "request": request,
+            "memories_by_project": dict(memories_by_project),
+            "stats": stats,
+        },
+    )
+
+
+# ===== Prompts Page =====
+
+
+@app.get("/prompts", response_class=HTMLResponse)
+async def prompts_page(request: Request):
+    """Prompt library — saved reusable prompts."""
+    from .data.prompt_library import get_all_prompts, get_categories
+
+    prompts = get_all_prompts()
+    categories = get_categories()
+
+    return templates.TemplateResponse(
+        "prompts.html",
+        {"request": request, "prompts": prompts, "categories": categories},
+    )
+
+
+@app.post("/api/prompts")
+async def save_prompt_api(request: Request):
+    """Save a prompt to the library."""
+    from .data.prompt_library import save_prompt
+    body = await request.json()
+    result = save_prompt(
+        content=body.get("content", ""),
+        source_session=body.get("source_session", ""),
+        source_uuid=body.get("source_uuid", ""),
+        title=body.get("title", ""),
+        tags=body.get("tags", []),
+        category=body.get("category", ""),
+    )
+    return JSONResponse({"ok": True, **result})
+
+
+@app.delete("/api/prompts/{prompt_id}")
+async def delete_prompt_api(prompt_id: str):
+    """Delete a prompt from the library."""
+    from .data.prompt_library import delete_prompt
+    ok = delete_prompt(prompt_id)
+    return JSONResponse({"ok": ok})
+
+
+@app.post("/api/prompts/{prompt_id}/use")
+async def use_prompt_api(prompt_id: str):
+    """Increment usage counter for a prompt."""
+    from .data.prompt_library import increment_usage
+    increment_usage(prompt_id)
+    return JSONResponse({"ok": True})
+
+
+# ===== Outcome Rating API =====
+
+
+@app.post("/api/sessions/{session_id}/rate")
+async def rate_session_api(session_id: str, request: Request):
+    """Rate a session outcome."""
+    from .data.outcomes import rate_session
+    body = await request.json()
+    result = rate_session(
+        session_id=session_id,
+        rating=body.get("rating", 3),
+        tags=body.get("tags", []),
+        note=body.get("note", ""),
+    )
+    return JSONResponse({"ok": True, **result})
+
+
+@app.get("/api/sessions/{session_id}/outcome")
+async def get_session_outcome(session_id: str):
+    """Get outcome rating for a session."""
+    from .data.outcomes import get_outcome
+    outcome = get_outcome(session_id)
+    if not outcome:
+        return JSONResponse({"rated": False})
+    return JSONResponse({"rated": True, **outcome})
+
+
 if __name__ == "__main__":
     import uvicorn
 
