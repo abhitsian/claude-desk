@@ -127,38 +127,78 @@ After install, go to Sessions > click **Build index** to enable semantic search 
 
 ## Features
 
+### Navigation: 7 pages, everything accessible
+
+`Dashboard` | `Timeline` | `Sessions` | `Artifacts` | `Intelligence` | `Decisions` | `Memory`
+
+### Core
+
 | Feature | Description |
 |---------|-------------|
 | **Dashboard** | Active, starred, and recent sessions at a glance |
 | **Timeline (Topic View)** | Sessions grouped by topic clusters per day, with domain tags and deep links |
 | **Timeline (Session View)** | Classic chronological view with inline topic pills |
-| **Semantic Search** | Natural language search using fastembed embeddings (bge-small-en-v1.5) |
-| **Keyword Search** | SQLite FTS5 with BM25 ranking across live + archived sessions |
-| **Hybrid Search** | Combined semantic (60%) + keyword (40%) scoring for best results |
-| **Message-Level Results** | Search returns individual messages with deep links to exact location |
-| **NL Query Preprocessing** | Strips "when did I discuss..." preamble — just type naturally |
-| **Topic Extraction** | Detects topic shifts within sessions, labels discussion blocks |
-| **Topic Clustering** | Groups related topics across sessions within each day |
 | **Conversation Viewer** | Chat-style layout, markdown rendering, collapsible threads |
 | **Auto Titles** | Sessions named from first message, not UUIDs |
 | **Favorites** | Star sessions for quick access |
 | **Fork** | Branch from any message to explore a different direction |
 | **Resume** | One click to open Terminal and resume any session |
 | **Export** | Copy or download any conversation as markdown |
-| **Cost Tracking** | Per-session cost, daily trends, most expensive sessions |
-| **Prompting Score** | 0-100 score based on your actual usage patterns |
-| **Trend Tracking** | Score deltas vs previous period — see if you're improving |
+| **Permanent Archive** | Daily cron saves sessions before Claude Code deletes them |
+| **Light/Dark Mode** | Toggle between warm dark and cream light themes |
+
+### Search
+
+| Feature | Description |
+|---------|-------------|
+| **Semantic Search** | Natural language search using fastembed embeddings (bge-small-en-v1.5) |
+| **Keyword Search** | SQLite FTS5 with BM25 ranking across live + archived sessions |
+| **Hybrid Search** | Combined semantic (60%) + keyword (40%) scoring for best results |
+| **Message-Level Results** | Search returns individual messages with deep links to exact location |
+| **NL Query Preprocessing** | Strips "when did I discuss..." preamble — just type naturally |
+
+### Artifacts (versioned creations + app launcher)
+
+| Feature | Description |
+|---------|-------------|
+| **Versioned Artifacts** | Every file Claude created, tracked with full version history across sessions |
+| **App Launcher** | HTML apps and pages shown in a gallery with iframe previews — click to launch |
+| **Noise Filtering** | Only concrete deliverables (apps, documents, scripts, images, data) — no config, temp, or dotfiles |
+| **Version Timeline** | See how an artifact evolved: v1 created, v2 added charts, v3 revised — with session links |
+| **Cross-Session Tracking** | Same file edited across multiple sessions grouped as one artifact |
+| **Artifact Detail** | Live preview, content viewer, version history sidebar, open-in-Finder |
+
+### Intelligence (unified analytics, tabbed)
+
+| Feature | Description |
+|---------|-------------|
+| **Cost Tracking** | Per-session cost, daily spend chart, most expensive sessions ranked |
+| **Prompting Score** | 0-100 score based on actual usage patterns, with trend tracking |
 | **Recommendations** | Personalized tips with before/after examples, reactive to time window |
 | **CLAUDE.md Playbook** | One-click apply learned rules to every future session |
+| **Skill Analytics** | Which skills you use most, skill chains, avg session length with/without skills |
+| **Tool Analytics** | Top tools by usage, error rates, agent spawn counts, permission denials |
+| **Skills Browser** | Browse all 100+ slash commands and skills from user config + plugins |
 | **Prompt Hook** | Real-time analysis before your prompt reaches Claude |
-| **Permanent Archive** | Daily cron saves sessions before Claude Code deletes them |
-| **Pasted Content Detection** | Identifies job postings, comp data, emails, webpages |
-| **Related Sessions** | Topic-based linking across conversations |
-| **Conversation Summaries** | Auto-generated overview of what was discussed |
-| **Skills Browser** | All slash commands and skills from user config + plugins |
-| **Artifacts Browser** | Every file Claude created or modified, filterable |
-| **Visualizations** | 3D terrain and constellation scatter of session data |
-| **Light/Dark Mode** | Toggle between warm dark and cream light themes |
+
+### Decisions
+
+| Feature | Description |
+|---------|-------------|
+| **Decision Extraction** | Auto-extracts recommendations, directions, conclusions, tradeoffs from conversations |
+| **Decision Log** | Chronological log with type/status badges, filterable and searchable |
+| **Status Management** | Mark decisions as active, superseded, or reversed |
+| **Context Preservation** | Each decision links back to its source session with surrounding context |
+
+### Memory
+
+| Feature | Description |
+|---------|-------------|
+| **Memory Explorer** | Browse all Claude Code auto-memories across projects |
+| **Type Filtering** | Filter by user, feedback, project, reference memory types |
+| **Staleness Tracking** | Visual indicators showing memory age (fresh/aging/stale) |
+| **Content Preview** | Expand any memory to see full content rendered as markdown |
+| **Outcome Rating** | Rate sessions 1-5 with tags (productive, wasted, learning) via API |
 
 ## How It Works
 
