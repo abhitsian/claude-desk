@@ -124,6 +124,29 @@ def _archived_to_metadata(a: dict) -> SessionMetadata:
     )
 
 
+import time as _time
+
+# Simple in-memory cache with TTL
+_cache: dict = {}
+_CACHE_TTL = 30  # seconds — fresh enough for dashboard, avoids re-parsing on every click
+
+
+def _cached(key: str, ttl: int = _CACHE_TTL):
+    """Decorator for caching function results with TTL."""
+    def decorator(fn):
+        def wrapper(*args, **kwargs):
+            cache_key = f"{key}:{args}:{kwargs}"
+            entry = _cache.get(cache_key)
+            if entry and (_time.time() - entry[0]) < ttl:
+                return entry[1]
+            result = fn(*args, **kwargs)
+            _cache[cache_key] = (_time.time(), result)
+            return result
+        return wrapper
+    return decorator
+
+
+@_cached("unified_sessions", ttl=30)
 def _get_all_sessions_unified(limit: int = 200) -> list:
     """Get ALL sessions ever — live JSONL + archived DB + history.jsonl metadata."""
     # 1. Live sessions (have JSONL files)
@@ -830,29 +853,40 @@ async def intelligence_page(request: Request, tab: str = "cost", days: int = 7):
     from .services.tool_analytics import get_tool_stats
     from .services.skill_scanner import scan_skills, group_by_source, get_stats as get_skill_browser_stats
 
-    all_sessions = _get_all_sessions_unified(limit=500)
-    live_sessions = parser.get_all_sessions()
+    # Only compute data for the active tab — saves seconds per page load
+    costs = patterns = playbook = session_costs = None
+    skill_stats = tool_stats = None
+    skill_groups = skill_browser_stats = None
 
-    # Cost data
-    costs = calculate_period_costs(all_sessions, days=days)
-    patterns = analyze_cross_session_patterns(all_sessions, parser)
-    playbook = generate_prompting_playbook(live_sessions, parser, days=days)
-    session_costs = []
-    for s in all_sessions[:50]:
-        c = calculate_session_cost(s)
-        c["title"] = s.title
-        c["session_id"] = s.session_id
-        c["date"] = s.start_time.strftime("%b %d")
-        session_costs.append(c)
+    if tab == "cost":
+        all_sessions = _get_all_sessions_unified(limit=500)
+        costs = calculate_period_costs(all_sessions, days=days)
+        session_costs = []
+        for s in all_sessions[:50]:
+            c = calculate_session_cost(s)
+            c["title"] = s.title
+            c["session_id"] = s.session_id
+            c["date"] = s.start_time.strftime("%b %d")
+            session_costs.append(c)
 
-    # Skill + tool analytics
-    skill_stats = get_skill_stats(live_sessions, parser, days=days)
-    tool_stats = get_tool_stats(live_sessions, parser, days=days)
+    elif tab == "prompting":
+        all_sessions = _get_all_sessions_unified(limit=500)
+        patterns = analyze_cross_session_patterns(all_sessions, parser)
+        live_sessions = parser.get_all_sessions()
+        playbook = generate_prompting_playbook(live_sessions, parser, days=days)
 
-    # Skills browser
-    all_skills = scan_skills()
-    skill_groups = group_by_source(all_skills)
-    skill_browser_stats = get_skill_browser_stats(all_skills)
+    elif tab == "skills":
+        live_sessions = parser.get_all_sessions()
+        skill_stats = get_skill_stats(live_sessions, parser, days=days)
+
+    elif tab == "tools":
+        live_sessions = parser.get_all_sessions()
+        tool_stats = get_tool_stats(live_sessions, parser, days=days)
+
+    elif tab == "browse":
+        all_skills = scan_skills()
+        skill_groups = group_by_source(all_skills)
+        skill_browser_stats = get_skill_browser_stats(all_skills)
 
     return templates.TemplateResponse(
         "intelligence.html",
@@ -860,14 +894,14 @@ async def intelligence_page(request: Request, tab: str = "cost", days: int = 7):
             "request": request,
             "tab": tab,
             "days": days,
-            "costs": costs,
-            "patterns": patterns,
-            "playbook": playbook,
-            "session_costs": session_costs,
-            "skill_stats": skill_stats,
-            "tool_stats": tool_stats,
-            "skill_groups": skill_groups,
-            "skill_browser_stats": skill_browser_stats,
+            "costs": costs or {},
+            "patterns": patterns or {},
+            "playbook": playbook or {},
+            "session_costs": session_costs or [],
+            "skill_stats": skill_stats or {},
+            "tool_stats": tool_stats or {},
+            "skill_groups": skill_groups or {},
+            "skill_browser_stats": skill_browser_stats or {},
         },
     )
 

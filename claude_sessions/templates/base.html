@@ -225,9 +225,27 @@
             transform: translateX(-50%);
         }
         .nav-link:hover::after, .nav-link.active::after { width: 100%; }
+
+        /* Loading bar */
+        #loading-bar {
+            position: fixed; top: 0; left: 0; height: 2px; z-index: 9999;
+            background: linear-gradient(90deg, #d4845a, #7a9e7e, #d4845a);
+            background-size: 200% 100%;
+            animation: shimmer 1s linear infinite;
+            transition: width 0.3s ease;
+            width: 0;
+            pointer-events: none;
+        }
+        #loading-bar.active { width: 70%; }
+        #loading-bar.done { width: 100%; opacity: 0; transition: width 0.2s ease, opacity 0.3s ease 0.2s; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* Page transition */
+        .page-loading main { opacity: 0.5; transition: opacity 0.15s ease; }
     </style>
 </head>
 <body class="bg-ink-950 text-ink-200 min-h-screen flex flex-col">
+    <div id="loading-bar"></div>
     <!-- Nav -->
     <nav class="border-b border-ink-800/60">
         <div class="max-w-6xl mx-auto px-6 lg:px-8">
@@ -240,7 +258,6 @@
                         <a href="/sessions" class="nav-link text-ink-400 hover:text-ink-100 text-sm font-medium transition-colors" id="nav-sessions">Sessions</a>
                         <a href="/artifacts" class="nav-link text-ink-400 hover:text-ink-100 text-sm font-medium transition-colors" id="nav-artifacts">Artifacts</a>
                         <a href="/intelligence" class="nav-link text-ink-400 hover:text-ink-100 text-sm font-medium transition-colors" id="nav-intelligence">Intelligence</a>
-                        <a href="/decisions" class="nav-link text-ink-400 hover:text-ink-100 text-sm font-medium transition-colors" id="nav-decisions">Decisions</a>
                         <a href="/memory" class="nav-link text-ink-400 hover:text-ink-100 text-sm font-medium transition-colors" id="nav-memory">Memory</a>
                     </div>
                 </div>
@@ -297,13 +314,39 @@
 
         // Highlight active nav
         const path = window.location.pathname;
-        const navMap = { '/': 'nav-dashboard', '/timeline': 'nav-timeline', '/sessions': 'nav-sessions', '/artifacts': 'nav-artifacts', '/intelligence': 'nav-intelligence', '/insights': 'nav-intelligence', '/analytics': 'nav-intelligence', '/skills': 'nav-intelligence', '/decisions': 'nav-decisions', '/memory': 'nav-memory' };
+        const navMap = { '/': 'nav-dashboard', '/timeline': 'nav-timeline', '/sessions': 'nav-sessions', '/artifacts': 'nav-artifacts', '/intelligence': 'nav-intelligence', '/insights': 'nav-intelligence', '/analytics': 'nav-intelligence', '/skills': 'nav-intelligence', '/memory': 'nav-memory' };
         for (const [prefix, id] of Object.entries(navMap)) {
             if (path === prefix || (prefix !== '/' && path.startsWith(prefix))) {
                 document.getElementById(id)?.classList.add('active', 'text-ink-100');
             }
         }
     });
+
+    // Loading bar — shows on every internal navigation
+    (function() {
+        const bar = document.getElementById('loading-bar');
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('a[href]');
+            if (!link) return;
+            const href = link.getAttribute('href');
+            // Only internal links, not # anchors, not _blank targets, not API calls
+            if (!href || href.startsWith('#') || href.startsWith('http') || href.startsWith('javascript') ||
+                link.target === '_blank' || href.startsWith('/api/')) return;
+            bar.className = 'active';
+            document.body.classList.add('page-loading');
+        });
+        // Also trigger on form submits
+        document.addEventListener('submit', function() {
+            bar.className = 'active';
+            document.body.classList.add('page-loading');
+        });
+        // Clear on page load (for back/forward nav)
+        window.addEventListener('pageshow', function() {
+            bar.className = 'done';
+            document.body.classList.remove('page-loading');
+            setTimeout(() => { bar.className = ''; bar.style.width = ''; }, 500);
+        });
+    })();
 
     // Toast
     function showToast(text) {
