@@ -1144,6 +1144,48 @@ async def update_decision_status(decision_id: int, request: Request):
     return JSONResponse({"ok": ok})
 
 
+# ===== Palace Page =====
+
+
+@app.get("/palace", response_class=HTMLResponse)
+async def palace_page(request: Request):
+    """Memory Palace — visual interface for MemPalace."""
+    from .data.palace import get_full_palace_view
+    palace = get_full_palace_view()
+    return templates.TemplateResponse(
+        "palace.html",
+        {"request": request, "palace": palace},
+    )
+
+
+@app.get("/api/palace/search")
+async def palace_search(q: str = ""):
+    """Search the memory palace."""
+    if not q:
+        return JSONResponse({"results": [], "query": ""})
+    from .data.palace import search_palace
+    results = search_palace(q, limit=15)
+    return JSONResponse({"results": results, "query": q})
+
+
+@app.post("/api/palace/curate")
+async def palace_curate():
+    """Run palace curation — mine new sessions."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["python3", "-m", "mempalace.cli", "mine",
+             str(Path.home() / ".claude" / "projects"), "--mode", "convos"],
+            capture_output=True, text=True, timeout=120,
+        )
+        output = result.stdout + result.stderr
+        return JSONResponse({"ok": True, "message": "Curation complete", "output": output[-500:]})
+    except subprocess.TimeoutExpired:
+        return JSONResponse({"ok": False, "message": "Curation timed out (>2min)"})
+    except Exception as e:
+        return JSONResponse({"ok": False, "message": str(e)})
+
+
 # ===== Memory Page =====
 
 

@@ -72,5 +72,25 @@ def main():
         print(f"Semantic index update failed: {e}")
 
 
+    # Curate MemPalace — mine new sessions into the palace
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["python3", "-m", "mempalace.cli", "mine",
+             str(Path.home() / ".claude" / "projects"), "--mode", "convos"],
+            capture_output=True, text=True, timeout=120,
+        )
+        if "drawers" in result.stdout.lower() or "mined" in result.stdout.lower():
+            print(f"MemPalace: curated")
+        else:
+            print(f"MemPalace: {result.stdout[-200:].strip() or 'no new data'}")
+    except FileNotFoundError:
+        print("MemPalace: not installed (pip install mempalace)")
+    except subprocess.TimeoutExpired:
+        print("MemPalace: mining timed out (>2min)")
+    except Exception as e:
+        print(f"MemPalace: {e}")
+
+
 if __name__ == "__main__":
     main()
