@@ -1170,20 +1170,23 @@ async def palace_search(q: str = ""):
 
 @app.post("/api/palace/curate")
 async def palace_curate():
-    """Run palace curation — mine new sessions."""
+    """Run palace curation — mine new sessions. Runs async to avoid blocking."""
     import subprocess
-    try:
-        result = subprocess.run(
-            ["python3", "-m", "mempalace.cli", "mine",
-             str(Path.home() / ".claude" / "projects"), "--mode", "convos"],
-            capture_output=True, text=True, timeout=120,
-        )
-        output = result.stdout + result.stderr
-        return JSONResponse({"ok": True, "message": "Curation complete", "output": output[-500:]})
-    except subprocess.TimeoutExpired:
-        return JSONResponse({"ok": False, "message": "Curation timed out (>2min)"})
-    except Exception as e:
-        return JSONResponse({"ok": False, "message": str(e)})
+    import threading
+
+    def _run_mine():
+        try:
+            subprocess.run(
+                ["python3", "-m", "mempalace.cli", "mine",
+                 str(Path.home() / ".claude" / "projects"), "--mode", "convos"],
+                capture_output=True, text=True, timeout=300,
+            )
+        except Exception:
+            pass
+
+    # Run in background thread so the API returns immediately
+    threading.Thread(target=_run_mine, daemon=True).start()
+    return JSONResponse({"ok": True, "message": "Curation started — mining in background. Refresh in a minute."})
 
 
 # ===== Memory Page =====
