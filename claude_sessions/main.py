@@ -819,6 +819,59 @@ async def semantic_search_api(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@app.get("/intelligence", response_class=HTMLResponse)
+async def intelligence_page(request: Request, tab: str = "cost", days: int = 7):
+    """Unified intelligence page — cost, prompting, skills, tools."""
+    from .services.insights import (
+        calculate_period_costs, analyze_cross_session_patterns,
+        calculate_session_cost, generate_prompting_playbook,
+    )
+    from .services.skill_analytics import get_skill_stats
+    from .services.tool_analytics import get_tool_stats
+    from .services.skill_scanner import scan_skills, group_by_source, get_stats as get_skill_browser_stats
+
+    all_sessions = _get_all_sessions_unified(limit=500)
+    live_sessions = parser.get_all_sessions()
+
+    # Cost data
+    costs = calculate_period_costs(all_sessions, days=days)
+    patterns = analyze_cross_session_patterns(all_sessions, parser)
+    playbook = generate_prompting_playbook(live_sessions, parser, days=days)
+    session_costs = []
+    for s in all_sessions[:50]:
+        c = calculate_session_cost(s)
+        c["title"] = s.title
+        c["session_id"] = s.session_id
+        c["date"] = s.start_time.strftime("%b %d")
+        session_costs.append(c)
+
+    # Skill + tool analytics
+    skill_stats = get_skill_stats(live_sessions, parser, days=days)
+    tool_stats = get_tool_stats(live_sessions, parser, days=days)
+
+    # Skills browser
+    all_skills = scan_skills()
+    skill_groups = group_by_source(all_skills)
+    skill_browser_stats = get_skill_browser_stats(all_skills)
+
+    return templates.TemplateResponse(
+        "intelligence.html",
+        {
+            "request": request,
+            "tab": tab,
+            "days": days,
+            "costs": costs,
+            "patterns": patterns,
+            "playbook": playbook,
+            "session_costs": session_costs,
+            "skill_stats": skill_stats,
+            "tool_stats": tool_stats,
+            "skill_groups": skill_groups,
+            "skill_browser_stats": skill_browser_stats,
+        },
+    )
+
+
 @app.get("/insights", response_class=HTMLResponse)
 async def insights_page(request: Request, days: int = 7):
     """Cross-conversation insights and cost analysis."""
@@ -890,32 +943,92 @@ async def visualize_page(request: Request):
 
 
 @app.get("/artifacts", response_class=HTMLResponse)
-async def artifacts_list(request: Request, file_type: str = "", session_id: str = ""):
-    """Artifacts listing page."""
-    artifacts = artifact_parser.get_all_artifacts(limit=200)
+async def artifacts_list(request: Request, type: str = ""):
+    """Artifacts gallery — versioned creations with app launcher."""
+    from .data.artifact_store import get_all_artifacts, get_artifact_stats
 
-    if file_type:
-        artifacts = [a for a in artifacts if a.file_type == file_type]
+    all_artifacts = get_all_artifacts(artifact_type=type if type else None, limit=200)
+    stats = get_artifact_stats()
 
-    if session_id:
-        artifacts = [a for a in artifacts if a.session_id == session_id]
-
-    stats = artifact_parser.get_artifact_stats()
-
-    all_artifacts = artifact_parser.get_all_artifacts(limit=500)
-    file_types = sorted(set(a.file_type for a in all_artifacts))
+    # Split into launchable apps vs everything else
+    apps = [a for a in all_artifacts if a["artifact_type"] == "app" and a["exists_on_disk"]]
+    other = [a for a in all_artifacts if a not in apps]
 
     return templates.TemplateResponse(
-        "artifacts.html",
+        "artifacts_v2.html",
         {
             "request": request,
-            "artifacts": artifacts,
+            "apps": apps,
+            "other_artifacts": other,
             "stats": stats,
-            "file_types": file_types,
-            "current_type": file_type,
-            "current_session": session_id,
         },
     )
+
+
+@app.get("/artifacts/{artifact_id}", response_class=HTMLResponse)
+async def artifact_detail_page(request: Request, artifact_id: int):
+    """Artifact detail with version history and preview."""
+    from .data.artifact_store import get_artifact_detail
+
+    artifact = get_artifact_detail(artifact_id)
+    if not artifact:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "message": "Artifact not found"},
+            status_code=404,
+        )
+
+    return templates.TemplateResponse(
+        "artifact_detail.html",
+        {"request": request, "artifact": artifact},
+    )
+
+
+@app.get("/artifacts/{artifact_id}/raw")
+async def artifact_raw(artifact_id: int):
+    """Serve the raw artifact file (for iframe preview / image display)."""
+    from .data.artifact_store import get_artifact_detail
+    from fastapi.responses import FileResponse
+
+    artifact = get_artifact_detail(artifact_id)
+    if not artifact or not artifact["exists_on_disk"]:
+        return PlainTextResponse("File not found", status_code=404)
+
+    file_path = artifact["file_path"]
+    return FileResponse(file_path)
+
+
+@app.get("/artifacts/{artifact_id}/preview")
+async def artifact_preview(artifact_id: int):
+    """Full-page preview of an artifact (opens in new tab)."""
+    from .data.artifact_store import get_artifact_detail
+    from fastapi.responses import FileResponse
+
+    artifact = get_artifact_detail(artifact_id)
+    if not artifact or not artifact["exists_on_disk"]:
+        return PlainTextResponse("File not found", status_code=404)
+
+    return FileResponse(artifact["file_path"])
+
+
+@app.post("/api/artifacts/build")
+async def build_artifact_index():
+    """Scan all sessions and build the artifact index."""
+    from .data.artifact_store import ingest_all_sessions
+    result = ingest_all_sessions()
+    return JSONResponse({"ok": True, **result})
+
+
+@app.post("/api/artifacts/open")
+async def open_artifact_in_finder(request: Request):
+    """Reveal an artifact in Finder (macOS)."""
+    import subprocess
+    body = await request.json()
+    path = body.get("path", "")
+    if path and Path(path).exists():
+        subprocess.Popen(["open", "-R", path])
+        return JSONResponse({"ok": True})
+    return JSONResponse({"ok": False, "error": "File not found"}, status_code=404)
 
 
 # ===== Analytics Page =====

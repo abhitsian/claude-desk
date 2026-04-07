@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}{{ artifact.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm mb-6 fade-up">
+        <a href="/artifacts" class="text-ink-500 hover:text-copper-400 transition-colors">Artifacts</a>
+        <span class="text-ink-700">/</span>
+        <span class="text-ink-300">{{ artifact.title }}</span>
+    </nav>
+
+    <!-- Header -->
+    <div class="flex items-start justify-between gap-6 mb-8 fade-up">
+        <div>
+            <div class="flex items-center gap-3 mb-2">
+                <h1 class="font-display text-2xl font-semibold text-ink-50">{{ artifact.title }}</h1>
+                <span class="text-[10px] px-2 py-0.5 rounded font-medium
+                    {% if artifact.artifact_type == 'app' %}bg-copper-500/15 text-copper-400
+                    {% elif artifact.artifact_type == 'document' %}bg-copper-500/15 text-copper-400
+                    {% elif artifact.artifact_type == 'script' %}bg-sage-400/15 text-sage-400
+                    {% elif artifact.artifact_type == 'image' %}bg-purple-400/15 text-purple-400
+                    {% elif artifact.artifact_type == 'data' %}bg-blue-400/15 text-blue-400
+                    {% else %}bg-ink-700/40 text-ink-400{% endif %}">{{ artifact.artifact_type }}</span>
+            </div>
+            <p class="text-ink-500 text-xs font-mono">{{ artifact.file_path }}</p>
+            <div class="flex items-center gap-4 mt-2 text-xs text-ink-500">
+                <span>{{ artifact.version_count }} version{{ 's' if artifact.version_count != 1 }}</span>
+                <span>{{ artifact.sessions_involved|length }} session{{ 's' if artifact.sessions_involved|length != 1 }}</span>
+                {% if artifact.current_size_bytes %}
+                <span>
+                    {% if artifact.current_size_bytes > 1048576 %}{{ (artifact.current_size_bytes / 1048576)|round(1) }}MB
+                    {% elif artifact.current_size_bytes > 1024 %}{{ (artifact.current_size_bytes / 1024)|round(1) }}KB
+                    {% else %}{{ artifact.current_size_bytes }}B{% endif %}
+                </span>
+                {% endif %}
+                <span>Created {{ artifact.first_seen[:10] }}</span>
+                {% if not artifact.exists_on_disk %}
+                <span class="text-red-400/70">deleted from disk</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="flex gap-2 shrink-0">
+            {% if artifact.exists_on_disk and artifact.artifact_type == 'app' %}
+            <button onclick="window.open('/artifacts/{{ artifact.id }}/preview', '_blank')" class="btn-action btn-primary">Launch</button>
+            {% endif %}
+            {% if artifact.exists_on_disk %}
+            <button onclick="openInFinder('{{ artifact.file_path }}')" class="btn-action">Open File</button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-8">
+        <!-- Main: Preview / Content (2 cols) -->
+        <div class="col-span-2">
+            {% if artifact.artifact_type == 'app' and artifact.exists_on_disk %}
+            <!-- Live preview -->
+            <div class="border border-ink-800/40 rounded-lg overflow-hidden mb-6 fade-up">
+                <div class="flex items-center justify-between px-3 py-2 border-b border-ink-800/40 bg-ink-900/50">
+                    <span class="text-ink-500 text-xs">Live Preview</span>
+                    <button onclick="window.open('/artifacts/{{ artifact.id }}/preview', '_blank')" class="text-copper-400/70 hover:text-copper-400 text-xs transition-colors">Open full &rarr;</button>
+                </div>
+                <iframe src="/artifacts/{{ artifact.id }}/raw" class="w-full border-0" style="height: 500px;" loading="lazy"></iframe>
+            </div>
+            {% elif artifact.artifact_type == 'image' and artifact.exists_on_disk %}
+            <div class="border border-ink-800/40 rounded-lg overflow-hidden mb-6 p-4 fade-up">
+                <img src="/artifacts/{{ artifact.id }}/raw" class="max-w-full rounded" alt="{{ artifact.title }}">
+            </div>
+            {% endif %}
+
+            {% if artifact.content and artifact.artifact_type != 'image' %}
+            <div class="border border-ink-800/40 rounded-lg overflow-hidden fade-up">
+                <div class="flex items-center justify-between px-3 py-2 border-b border-ink-800/40 bg-ink-900/50">
+                    <span class="text-ink-500 text-xs">Content (current)</span>
+                    <button onclick="copyContent()" class="text-ink-500 hover:text-copper-400 text-xs transition-colors">Copy</button>
+                </div>
+                {% if artifact.artifact_type == 'document' %}
+                <div class="p-4 md-render text-ink-300 text-sm" id="content-block">{{ artifact.content }}</div>
+                {% else %}
+                <pre class="p-4 text-ink-300 text-xs font-mono overflow-x-auto max-h-[600px] overflow-y-auto" id="content-block">{{ artifact.content }}</pre>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar: Version timeline (1 col) -->
+        <div>
+            <h3 class="font-display text-sm font-semibold text-ink-200 mb-4 fade-up">Version History</h3>
+            <div class="relative">
+                <!-- Timeline line -->
+                <div class="absolute left-3 top-2 bottom-2 w-px bg-ink-800/60"></div>
+
+                {% for v in artifact.versions %}
+                <div class="relative pl-8 pb-5 fade-up">
+                    <!-- Dot -->
+                    <div class="absolute left-1.5 top-1.5 w-3 h-3 rounded-full border-2
+                        {% if loop.first %}border-copper-400 bg-copper-400/20{% else %}border-ink-700 bg-ink-900{% endif %}"></div>
+
+                    <div>
+                        <div class="flex items-center gap-2 mb-0.5">
+                            <span class="text-ink-200 text-xs font-semibold">v{{ v.version_number }}</span>
+                            <span class="text-[10px] px-1 py-0.5 rounded
+                                {% if v.operation == 'create' %}bg-sage-400/15 text-sage-400{% else %}bg-copper-500/15 text-copper-400{% endif %}">{{ v.operation }}</span>
+                        </div>
+                        <p class="text-ink-500 text-xs">{{ v.timestamp[:16].replace('T', ' ') }}</p>
+                        <a href="/sessions/{{ v.session_id }}" class="text-copper-400/60 hover:text-copper-400 text-xs transition-colors">
+                            Session {{ v.session_id[:8] }}
+                        </a>
+                        {% if v.change_summary %}
+                        <p class="text-ink-500 text-xs mt-1 italic truncate" title="{{ v.change_summary }}">{{ v.change_summary[:80] }}</p>
+                        {% elif v.content_preview %}
+                        <p class="text-ink-600 text-xs mt-1 truncate">{{ v.content_preview[:80] }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Sessions involved -->
+            {% if artifact.sessions_involved|length > 1 %}
+            <h3 class="font-display text-sm font-semibold text-ink-200 mb-3 mt-6 fade-up">Sessions</h3>
+            <div class="grid gap-1">
+                {% for sid in artifact.sessions_involved %}
+                <a href="/sessions/{{ sid }}" class="text-xs text-copper-400/60 hover:text-copper-400 font-mono transition-colors">{{ sid[:12] }}...</a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function copyContent() {
+    const block = document.getElementById('content-block');
+    navigator.clipboard.writeText(block.textContent).then(() => showToast('Copied'));
+}
+function openInFinder(path) {
+    // macOS: reveal in Finder
+    fetch('/api/artifacts/open', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: path })
+    }).then(() => showToast('Opened in Finder'));
+}
+</script>
+{% endblock %}

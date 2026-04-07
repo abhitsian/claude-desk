@@ -45,3 +45,4 @@ Thumbs.db
 *.npy
 *.jsonl
 semantic-index/
+claude-desk.log

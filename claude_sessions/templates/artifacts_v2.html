@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Artifacts{% endblock %}
+
+{% block content %}
+<div>
+    <div class="flex items-baseline justify-between mb-10 fade-up">
+        <div>
+            <h1 class="font-display text-3xl font-semibold text-ink-50 tracking-tight">Artifacts</h1>
+            <p class="text-ink-500 text-sm mt-1">{{ stats.total }} creations &middot; {{ stats.total_versions }} versions &middot;
+                {{ stats.on_disk }} on disk{% if stats.deleted %} &middot; {{ stats.deleted }} deleted{% endif %}
+            </p>
+        </div>
+        <div class="flex items-center gap-3">
+            <input type="text" id="art-search" placeholder="Search artifacts..."
+                   class="bg-transparent text-ink-200 placeholder-ink-500 px-3 py-1.5 text-sm border border-ink-700/50 rounded-md w-52 focus:outline-none focus:border-copper-500/60 transition-all"
+                   oninput="filterArtifacts()">
+            {% if not stats.total %}
+            <button onclick="buildIndex()" class="btn-action btn-primary" id="build-btn">Build Index</button>
+            {% else %}
+            <button onclick="buildIndex()" class="btn-action" id="build-btn">Rebuild</button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Type filters -->
+    <div class="flex gap-2 mb-8 fade-up" id="type-filters">
+        <button onclick="setFilter('all')" class="filter-btn btn-action btn-primary" data-filter="all">
+            All <span class="text-ink-600 ml-1">{{ stats.total }}</span>
+        </button>
+        {% for t, count in stats.by_type.items()|sort(attribute='1', reverse=true) %}
+        <button onclick="setFilter('{{ t }}')" class="filter-btn btn-action" data-filter="{{ t }}">
+            {% if t == 'app' %}&#9881;{% elif t == 'document' %}&#9998;{% elif t == 'script' %}&#9000;{% elif t == 'image' %}&#9734;{% elif t == 'data' %}&#9638;{% endif %}
+            {{ t|title }} <span class="text-ink-600 ml-1">{{ count }}</span>
+        </button>
+        {% endfor %}
+    </div>
+
+    <!-- Apps section — launchable HTML/web artifacts -->
+    {% if apps %}
+    <section class="mb-12">
+        <div class="flex items-center gap-3 mb-5 fade-up">
+            <h2 class="font-display text-lg font-semibold text-ink-100">Apps & Pages</h2>
+            <span class="text-ink-600 text-xs">click to launch</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for a in apps %}
+            <div class="art-card group border border-ink-800/40 rounded-lg overflow-hidden fade-up hover:border-copper-500/30 transition-all"
+                 data-type="{{ a.artifact_type }}" data-title="{{ a.title|lower }}" data-path="{{ a.file_path|lower }}">
+                <!-- Preview frame -->
+                <div class="relative bg-ink-900 h-40 overflow-hidden cursor-pointer" onclick="window.open('/artifacts/{{ a.id }}/preview', '_blank')">
+                    {% if a.exists_on_disk %}
+                    <iframe src="/artifacts/{{ a.id }}/raw" class="w-full h-full pointer-events-none transform scale-[0.5] origin-top-left" style="width: 200%; height: 200%;" loading="lazy"></iframe>
+                    <div class="absolute inset-0 bg-gradient-to-t from-ink-900/80 to-transparent"></div>
+                    {% else %}
+                    <div class="flex items-center justify-center h-full text-ink-600 text-xs">File deleted from disk</div>
+                    {% endif %}
+                    <div class="absolute bottom-2 left-3 right-3">
+                        <span class="text-ink-50 font-medium text-sm drop-shadow-lg">{{ a.title }}</span>
+                    </div>
+                </div>
+                <!-- Info -->
+                <div class="p-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-ink-400 text-xs font-mono truncate flex-1">{{ a.file_name }}</span>
+                        {% if a.version_count > 1 %}
+                        <span class="text-copper-400/70 text-xs ml-2">v{{ a.version_count }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-ink-600 text-xs">{{ a.last_modified[:10] }}</span>
+                        <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {% if a.exists_on_disk %}
+                            <button onclick="window.open('/artifacts/{{ a.id }}/preview', '_blank')" class="btn-action text-xs">Launch</button>
+                            {% endif %}
+                            <a href="/artifacts/{{ a.id }}" class="btn-action text-xs">Details</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- All other artifacts -->
+    {% if other_artifacts %}
+    <section class="mb-12">
+        <h2 class="font-display text-lg font-semibold text-ink-100 mb-5 fade-up">
+            {% if apps %}Other Creations{% else %}Creations{% endif %}
+        </h2>
+        <div class="border border-ink-800/40 rounded-lg overflow-hidden">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-ink-800/40">
+                        <th class="text-left py-2.5 px-4 text-ink-500 font-medium text-xs">Name</th>
+                        <th class="text-left py-2.5 px-4 text-ink-500 font-medium text-xs">Type</th>
+                        <th class="text-right py-2.5 px-4 text-ink-500 font-medium text-xs">Versions</th>
+                        <th class="text-right py-2.5 px-4 text-ink-500 font-medium text-xs">Size</th>
+                        <th class="text-right py-2.5 px-4 text-ink-500 font-medium text-xs">Last Modified</th>
+                        <th class="text-right py-2.5 px-4 text-ink-500 font-medium text-xs"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in other_artifacts %}
+                    <tr class="art-card border-b border-ink-800/20 hover:bg-copper-500/[0.03] transition-colors"
+                        data-type="{{ a.artifact_type }}" data-title="{{ a.title|lower }}" data-path="{{ a.file_path|lower }}">
+                        <td class="py-2.5 px-4">
+                            <a href="/artifacts/{{ a.id }}" class="text-ink-200 hover:text-copper-400 transition-colors">
+                                {{ a.title }}
+                            </a>
+                            <p class="text-ink-600 text-xs font-mono truncate max-w-xs">{{ a.file_name }}</p>
+                        </td>
+                        <td class="py-2.5 px-4">
+                            <span class="text-[10px] px-1.5 py-0.5 rounded font-medium
+                                {% if a.artifact_type == 'document' %}bg-copper-500/15 text-copper-400
+                                {% elif a.artifact_type == 'script' %}bg-sage-400/15 text-sage-400
+                                {% elif a.artifact_type == 'data' %}bg-blue-400/15 text-blue-400
+                                {% elif a.artifact_type == 'image' %}bg-purple-400/15 text-purple-400
+                                {% else %}bg-ink-700/40 text-ink-400{% endif %}">{{ a.artifact_type }}</span>
+                        </td>
+                        <td class="py-2.5 px-4 text-right text-ink-300">
+                            {% if a.version_count > 1 %}
+                            <span class="text-copper-400/70">{{ a.version_count }}</span>
+                            {% else %}1{% endif %}
+                        </td>
+                        <td class="py-2.5 px-4 text-right text-ink-400 text-xs">
+                            {% if a.current_size_bytes > 1048576 %}{{ (a.current_size_bytes / 1048576)|round(1) }}MB
+                            {% elif a.current_size_bytes > 1024 %}{{ (a.current_size_bytes / 1024)|round(1) }}KB
+                            {% elif a.current_size_bytes %}{{ a.current_size_bytes }}B
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="py-2.5 px-4 text-right text-ink-500 text-xs">{{ a.last_modified[:10] }}</td>
+                        <td class="py-2.5 px-4 text-right">
+                            {% if not a.exists_on_disk %}
+                            <span class="text-ink-600 text-xs">deleted</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if not apps and not other_artifacts %}
+    <div class="border border-ink-800/30 rounded-lg p-8 text-center fade-up">
+        <p class="text-ink-500">No artifacts indexed yet.</p>
+        <p class="text-ink-600 text-sm mt-1">Click "Build Index" to scan all sessions for files Claude created.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+let activeFilter = 'all';
+function setFilter(type) {
+    activeFilter = type;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('btn-primary', b.dataset.filter === type));
+    filterArtifacts();
+}
+function filterArtifacts() {
+    const q = document.getElementById('art-search').value.toLowerCase();
+    document.querySelectorAll('.art-card').forEach(card => {
+        const matchType = activeFilter === 'all' || card.dataset.type === activeFilter;
+        const matchQ = !q || (card.dataset.title || '').includes(q) || (card.dataset.path || '').includes(q);
+        card.style.display = matchType && matchQ ? '' : 'none';
+    });
+}
+function buildIndex() {
+    const btn = document.getElementById('build-btn');
+    btn.textContent = 'Scanning...';
+    btn.disabled = true;
+    fetch('/api/artifacts/build', { method: 'POST' })
+        .then(r => r.json())
+        .then(d => {
+            showToast(d.artifacts + ' artifacts, ' + d.versions + ' versions indexed');
+            setTimeout(() => location.reload(), 800);
+        })
+        .catch(() => { btn.textContent = 'Build Index'; btn.disabled = false; });
+}
+</script>
+{% endblock %}

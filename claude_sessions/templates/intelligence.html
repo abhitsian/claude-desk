@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% block title %}Intelligence{% endblock %}
+
+{% block content %}
+<div>
+    <div class="flex items-baseline justify-between mb-6 fade-up">
+        <div>
+            <h1 class="font-display text-3xl font-semibold text-ink-50 tracking-tight">Intelligence</h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="?tab={{ tab }}&days=7" class="btn-action {% if days == 7 %}btn-primary{% endif %}">7d</a>
+            <a href="?tab={{ tab }}&days=30" class="btn-action {% if days == 30 %}btn-primary{% endif %}">30d</a>
+            <a href="?tab={{ tab }}&days=90" class="btn-action {% if days == 90 %}btn-primary{% endif %}">90d</a>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-1 mb-8 border-b border-ink-800/40 fade-up">
+        <a href="?tab=cost&days={{ days }}" class="px-4 py-2.5 text-sm font-medium transition-colors relative
+            {% if tab == 'cost' %}text-ink-100{% else %}text-ink-500 hover:text-ink-300{% endif %}">
+            Cost
+            {% if tab == 'cost' %}<span class="absolute bottom-0 left-0 right-0 h-0.5 bg-copper-400"></span>{% endif %}
+        </a>
+        <a href="?tab=prompting&days={{ days }}" class="px-4 py-2.5 text-sm font-medium transition-colors relative
+            {% if tab == 'prompting' %}text-ink-100{% else %}text-ink-500 hover:text-ink-300{% endif %}">
+            Prompting
+            {% if tab == 'prompting' %}<span class="absolute bottom-0 left-0 right-0 h-0.5 bg-copper-400"></span>{% endif %}
+        </a>
+        <a href="?tab=skills&days={{ days }}" class="px-4 py-2.5 text-sm font-medium transition-colors relative
+            {% if tab == 'skills' %}text-ink-100{% else %}text-ink-500 hover:text-ink-300{% endif %}">
+            Skills
+            {% if tab == 'skills' %}<span class="absolute bottom-0 left-0 right-0 h-0.5 bg-copper-400"></span>{% endif %}
+        </a>
+        <a href="?tab=tools&days={{ days }}" class="px-4 py-2.5 text-sm font-medium transition-colors relative
+            {% if tab == 'tools' %}text-ink-100{% else %}text-ink-500 hover:text-ink-300{% endif %}">
+            Tools
+            {% if tab == 'tools' %}<span class="absolute bottom-0 left-0 right-0 h-0.5 bg-copper-400"></span>{% endif %}
+        </a>
+        <a href="?tab=browse&days={{ days }}" class="px-4 py-2.5 text-sm font-medium transition-colors relative
+            {% if tab == 'browse' %}text-ink-100{% else %}text-ink-500 hover:text-ink-300{% endif %}">
+            Browse Skills
+            {% if tab == 'browse' %}<span class="absolute bottom-0 left-0 right-0 h-0.5 bg-copper-400"></span>{% endif %}
+        </a>
+    </div>
+
+    <!-- ===== COST TAB ===== -->
+    {% if tab == 'cost' %}
+    <div class="fade-up">
+        <div class="flex items-baseline gap-10 mb-8">
+            <div>
+                <span class="font-display text-2xl font-semibold text-copper-400">${{ "%.2f"|format(costs.total_cost) }}</span>
+                <span class="text-ink-500 text-xs ml-1.5">total ({{ days }}d)</span>
+            </div>
+            <div>
+                <span class="font-display text-2xl font-semibold text-ink-200">{{ costs.session_costs|length }}</span>
+                <span class="text-ink-500 text-xs ml-1.5">sessions</span>
+            </div>
+            {% if costs.session_costs %}
+            <div>
+                <span class="font-display text-2xl font-semibold text-ink-300">${{ "%.2f"|format(costs.total_cost / costs.session_costs|length) }}</span>
+                <span class="text-ink-500 text-xs ml-1.5">avg/session</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Daily costs chart -->
+        {% if costs.daily_costs %}
+        <div class="border border-ink-800/40 rounded-lg p-5 mb-8">
+            <h3 class="text-ink-300 text-sm font-medium mb-4">Daily Spend</h3>
+            <div class="flex items-end gap-1 h-32">
+                {% set max_daily = costs.daily_costs.values()|max if costs.daily_costs else 1 %}
+                {% for day, cost in costs.daily_costs.items()|sort %}
+                <div class="flex-1 flex flex-col items-center gap-1">
+                    <div class="w-full bg-copper-400/40 rounded-t" style="height: {{ (cost / max_daily * 100)|int }}%" title="${{ '%.2f'|format(cost) }}"></div>
+                    <span class="text-ink-600 text-[9px]">{{ day[-2:] }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Most expensive sessions -->
+        {% if session_costs %}
+        <div class="border border-ink-800/40 rounded-lg overflow-hidden">
+            <div class="px-4 py-3 border-b border-ink-800/40">
+                <h3 class="text-ink-300 text-sm font-medium">Session Costs</h3>
+            </div>
+            <table class="w-full text-sm">
+                <thead><tr class="border-b border-ink-800/40">
+                    <th class="text-left py-2 px-4 text-ink-500 font-medium text-xs">Session</th>
+                    <th class="text-right py-2 px-4 text-ink-500 font-medium text-xs">Input</th>
+                    <th class="text-right py-2 px-4 text-ink-500 font-medium text-xs">Output</th>
+                    <th class="text-right py-2 px-4 text-ink-500 font-medium text-xs">Total</th>
+                </tr></thead>
+                <tbody>
+                {% for c in session_costs[:15] %}
+                <tr class="border-b border-ink-800/20">
+                    <td class="py-2 px-4"><a href="/sessions/{{ c.session_id }}" class="text-ink-200 hover:text-copper-400 transition-colors text-xs">{{ c.title or c.session_id[:8] }}</a><span class="text-ink-600 text-xs ml-2">{{ c.date }}</span></td>
+                    <td class="py-2 px-4 text-right text-ink-400 text-xs">${{ "%.3f"|format(c.input_cost) }}</td>
+                    <td class="py-2 px-4 text-right text-ink-400 text-xs">${{ "%.3f"|format(c.output_cost) }}</td>
+                    <td class="py-2 px-4 text-right text-ink-200 text-xs font-medium">${{ "%.3f"|format(c.total_cost) }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ===== PROMPTING TAB ===== -->
+    {% elif tab == 'prompting' %}
+    <div class="fade-up">
+        {% if playbook %}
+        <!-- Prompting score -->
+        <div class="flex items-baseline gap-10 mb-8">
+            <div>
+                <span class="font-display text-4xl font-semibold {% if playbook.score >= 70 %}text-sage-400{% elif playbook.score >= 40 %}text-copper-400{% else %}text-red-400{% endif %}">{{ playbook.score }}</span>
+                <span class="text-ink-500 text-xs ml-1.5">/ 100</span>
+            </div>
+            {% if playbook.metrics %}
+            {% for key, val in playbook.metrics.items() %}
+            <div>
+                <span class="font-display text-lg font-semibold text-ink-300">{{ val }}</span>
+                <span class="text-ink-500 text-xs ml-1.5">{{ key }}</span>
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
+
+        {% if playbook.trends %}
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            {% for trend in playbook.trends %}
+            <div class="border border-ink-800/40 rounded-lg p-3">
+                <p class="text-ink-500 text-xs mb-1">{{ trend.label }}</p>
+                <p class="text-ink-200 font-medium">{{ trend.value }} <span class="text-xs {% if trend.delta and '+' in trend.delta|string %}text-sage-400{% elif trend.delta %}text-red-400{% else %}text-ink-500{% endif %}">{{ trend.delta or '' }}</span></p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if playbook.recommendations %}
+        <div class="border border-ink-800/40 rounded-lg p-5 mb-8">
+            <h3 class="text-ink-300 text-sm font-medium mb-3">Recommendations</h3>
+            {% for rec in playbook.recommendations %}
+            <div class="mb-3 pb-3 border-b border-ink-800/20 last:border-0 last:mb-0 last:pb-0">
+                <p class="text-ink-200 text-sm">{{ rec }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if playbook.playbook_content %}
+        <div class="border border-copper-500/20 rounded-lg p-5">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-ink-100 text-sm font-semibold">Auto-apply to your sessions</h3>
+                <button onclick="applyPlaybook()" class="btn-action btn-primary text-xs">Apply to CLAUDE.md</button>
+            </div>
+            <pre class="text-ink-400 text-xs font-mono whitespace-pre-wrap" id="playbook-content">{{ playbook.playbook_content }}</pre>
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="text-ink-500">Not enough sessions to generate prompting insights for the last {{ days }} days.</p>
+        {% endif %}
+    </div>
+
+    <!-- ===== SKILLS ANALYTICS TAB ===== -->
+    {% elif tab == 'skills' %}
+    <div class="fade-up">
+        <div class="flex items-baseline gap-10 mb-8">
+            <div><span class="font-display text-2xl font-semibold text-copper-400">{{ skill_stats.total_skill_invocations }}</span><span class="text-ink-500 text-xs ml-1.5">invocations</span></div>
+            <div><span class="font-display text-2xl font-semibold text-ink-200">{{ skill_stats.unique_skills }}</span><span class="text-ink-500 text-xs ml-1.5">unique skills</span></div>
+            <div><span class="font-display text-2xl font-semibold text-ink-300">{{ skill_stats.sessions_using_skills }}</span><span class="text-ink-500 text-xs ml-1.5">sessions with skills</span></div>
+        </div>
+
+        {% if skill_stats.top_skills %}
+        <div class="border border-ink-800/40 rounded-lg overflow-hidden mb-8">
+            <table class="w-full text-sm">
+                <thead><tr class="border-b border-ink-800/40">
+                    <th class="text-left py-3 px-4 text-ink-400 font-medium">Skill</th>
+                    <th class="text-right py-3 px-4 text-ink-400 font-medium">Uses</th>
+                    <th class="text-right py-3 px-4 text-ink-400 font-medium">Avg Session Msgs</th>
+                    <th class="text-left py-3 px-4 text-ink-400 font-medium w-1/3">Usage</th>
+                </tr></thead>
+                <tbody>
+                {% set max_count = skill_stats.top_skills[0].count if skill_stats.top_skills else 1 %}
+                {% for skill in skill_stats.top_skills %}
+                <tr class="border-b border-ink-800/20 hover:bg-copper-500/[0.03]">
+                    <td class="py-2.5 px-4"><span class="font-mono text-copper-400 text-xs">/{{ skill.name }}</span></td>
+                    <td class="py-2.5 px-4 text-right text-ink-200">{{ skill.count }}</td>
+                    <td class="py-2.5 px-4 text-right text-ink-300">{% if skill.name in skill_stats.avg_session_length_with_skill %}{{ skill_stats.avg_session_length_with_skill[skill.name] }}{% else %}—{% endif %}</td>
+                    <td class="py-2.5 px-4"><div class="w-full bg-ink-800/40 rounded-full h-1.5"><div class="bg-copper-400/60 h-1.5 rounded-full" style="width: {{ (skill.count / max_count * 100)|int }}%"></div></div></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if skill_stats.skill_chains %}
+        <div class="mb-8">
+            <h3 class="text-ink-300 text-sm font-medium mb-3">Skill Chains</h3>
+            <div class="flex flex-wrap gap-3">
+                {% for chain in skill_stats.skill_chains %}
+                <div class="flex items-center gap-1.5 bg-ink-800/40 rounded-full px-3 py-1.5 text-xs">
+                    <span class="font-mono text-copper-400">/{{ chain.skill1 }}</span>
+                    <span class="text-ink-600">+</span>
+                    <span class="font-mono text-copper-400">/{{ chain.skill2 }}</span>
+                    <span class="text-ink-500 ml-1">&times;{{ chain.count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="text-ink-500">No skill usage detected in the last {{ days }} days.</p>
+        {% endif %}
+    </div>
+
+    <!-- ===== TOOLS TAB ===== -->
+    {% elif tab == 'tools' %}
+    <div class="fade-up">
+        <div class="flex items-baseline gap-10 mb-8">
+            <div><span class="font-display text-2xl font-semibold text-copper-400">{{ tool_stats.total_tool_calls }}</span><span class="text-ink-500 text-xs ml-1.5">tool calls</span></div>
+            <div><span class="font-display text-2xl font-semibold text-ink-200">{{ tool_stats.unique_tools }}</span><span class="text-ink-500 text-xs ml-1.5">unique tools</span></div>
+            <div><span class="font-display text-2xl font-semibold text-sage-400">{{ tool_stats.agent_spawns }}</span><span class="text-ink-500 text-xs ml-1.5">agent spawns</span></div>
+        </div>
+
+        {% if tool_stats.top_tools %}
+        <div class="border border-ink-800/40 rounded-lg p-5 mb-8">
+            <h3 class="text-ink-300 text-sm font-medium mb-4">Top Tools</h3>
+            {% set max_tool = tool_stats.top_tools[0].count if tool_stats.top_tools else 1 %}
+            {% for tool in tool_stats.top_tools[:10] %}
+            <div class="flex items-center gap-3 mb-2">
+                <span class="text-ink-300 text-xs font-mono w-24 text-right truncate">{{ tool.name }}</span>
+                <div class="flex-1"><div class="bg-ink-800/40 rounded-full h-4 w-full"><div class="h-4 rounded-full bg-copper-400/40" style="width: {{ (tool.count / max_tool * 100)|int }}%"></div></div></div>
+                <span class="text-ink-400 text-xs w-12 text-right">{{ tool.count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if tool_stats.most_error_prone %}
+        <div class="border border-ink-800/40 rounded-lg overflow-hidden">
+            <div class="px-4 py-3 border-b border-ink-800/40"><h3 class="text-ink-300 text-sm font-medium">Error-Prone Tools</h3></div>
+            <table class="w-full text-sm">
+                <thead><tr class="border-b border-ink-800/40">
+                    <th class="text-left py-2.5 px-4 text-ink-500 font-medium text-xs">Tool</th>
+                    <th class="text-right py-2.5 px-4 text-ink-500 font-medium text-xs">Calls</th>
+                    <th class="text-right py-2.5 px-4 text-ink-500 font-medium text-xs">Errors</th>
+                    <th class="text-right py-2.5 px-4 text-ink-500 font-medium text-xs">Rate</th>
+                </tr></thead>
+                <tbody>
+                {% for tool in tool_stats.most_error_prone %}
+                <tr class="border-b border-ink-800/20">
+                    <td class="py-2 px-4 font-mono text-xs text-ink-200">{{ tool.name }}</td>
+                    <td class="py-2 px-4 text-right text-ink-300">{{ tool.calls }}</td>
+                    <td class="py-2 px-4 text-right text-ink-400">{{ tool.errors }}</td>
+                    <td class="py-2 px-4 text-right"><span class="px-2 py-0.5 rounded text-xs font-medium {% if tool.rate > 0.15 %}bg-red-400/15 text-red-400{% elif tool.rate > 0.05 %}bg-amber-400/15 text-amber-400{% else %}bg-sage-400/15 text-sage-400{% endif %}">{{ (tool.rate * 100)|round(1) }}%</span></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="text-ink-500">No tool usage data for the last {{ days }} days.</p>
+        {% endif %}
+    </div>
+
+    <!-- ===== BROWSE SKILLS TAB ===== -->
+    {% elif tab == 'browse' %}
+    <div class="fade-up">
+        <div class="flex items-baseline gap-10 mb-8">
+            <div><span class="font-display text-2xl font-semibold text-copper-400">{{ skill_browser_stats.total }}</span><span class="text-ink-500 text-xs ml-1.5">skills installed</span></div>
+            <div><span class="font-display text-2xl font-semibold text-ink-200">{{ skill_groups|length }}</span><span class="text-ink-500 text-xs ml-1.5">sources</span></div>
+        </div>
+
+        {% for source, skills in skill_groups.items() %}
+        <section class="mb-8">
+            <h2 class="font-display text-lg font-semibold text-ink-100 mb-4">{{ source }}</h2>
+            <div class="grid gap-2">
+                {% for skill in skills %}
+                <details class="border border-ink-800/30 rounded-lg hover:border-copper-500/20 transition-colors">
+                    <summary class="px-4 py-2.5 cursor-pointer flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="font-mono text-copper-400 text-xs">/{{ skill.name }}</span>
+                            {% if skill.description %}<span class="text-ink-500 text-xs">{{ skill.description[:60] }}</span>{% endif %}
+                        </div>
+                        {% for tag in skill.tags[:3] %}<span class="text-[9px] px-1.5 py-0.5 bg-ink-800/40 rounded text-ink-500">{{ tag }}</span>{% endfor %}
+                    </summary>
+                    <div class="px-4 pb-3 border-t border-ink-800/20 pt-3">
+                        {% if skill.body %}<div class="md-render text-ink-300 text-xs">{{ skill.body }}</div>{% endif %}
+                        <p class="text-ink-600 text-xs mt-2 font-mono">{{ skill.file_path }}</p>
+                    </div>
+                </details>
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function applyPlaybook() {
+    const content = document.getElementById('playbook-content')?.textContent;
+    if (!content) return;
+    fetch('/api/apply-playbook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content })
+    }).then(r => r.json()).then(d => {
+        showToast(d.ok ? 'Applied to CLAUDE.md' : 'Failed: ' + d.error);
+    });
+}
+</script>
+{% endblock %}
