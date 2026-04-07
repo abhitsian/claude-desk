@@ -273,22 +273,37 @@
             <div><span class="font-display text-2xl font-semibold text-ink-200">{{ skill_groups|length }}</span><span class="text-ink-500 text-xs ml-1.5">sources</span></div>
         </div>
 
-        {% for source, skills in skill_groups.items() %}
+        {% for source, group in skill_groups.items() %}
         <section class="mb-8">
-            <h2 class="font-display text-lg font-semibold text-ink-100 mb-4">{{ source }}</h2>
+            <h2 class="font-display text-lg font-semibold text-ink-100 mb-4">{{ group.name if group.name is defined else source }}</h2>
             <div class="grid gap-2">
-                {% for skill in skills %}
+                {% for skill in group.skills %}
                 <details class="border border-ink-800/30 rounded-lg hover:border-copper-500/20 transition-colors">
                     <summary class="px-4 py-2.5 cursor-pointer flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <span class="font-mono text-copper-400 text-xs">/{{ skill.name }}</span>
                             {% if skill.description %}<span class="text-ink-500 text-xs">{{ skill.description[:60] }}</span>{% endif %}
                         </div>
-                        {% for tag in skill.tags[:3] %}<span class="text-[9px] px-1.5 py-0.5 bg-ink-800/40 rounded text-ink-500">{{ tag }}</span>{% endfor %}
+                        <span class="text-[9px] px-1.5 py-0.5 bg-sage-400/15 rounded text-sage-400">skill</span>
                     </summary>
                     <div class="px-4 pb-3 border-t border-ink-800/20 pt-3">
-                        {% if skill.body %}<div class="md-render text-ink-300 text-xs">{{ skill.body }}</div>{% endif %}
-                        <p class="text-ink-600 text-xs mt-2 font-mono">{{ skill.file_path }}</p>
+                        {% if skill.full_body %}<div class="md-render text-ink-300 text-xs">{{ skill.full_body }}</div>{% endif %}
+                        <p class="text-ink-600 text-xs mt-2 font-mono">{{ skill.path }}</p>
+                    </div>
+                </details>
+                {% endfor %}
+                {% for skill in group.commands %}
+                <details class="border border-ink-800/30 rounded-lg hover:border-copper-500/20 transition-colors">
+                    <summary class="px-4 py-2.5 cursor-pointer flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="font-mono text-copper-400 text-xs">/{{ skill.name }}</span>
+                            {% if skill.description %}<span class="text-ink-500 text-xs">{{ skill.description[:60] }}</span>{% endif %}
+                        </div>
+                        <span class="text-[9px] px-1.5 py-0.5 bg-copper-500/15 rounded text-copper-400">command</span>
+                    </summary>
+                    <div class="px-4 pb-3 border-t border-ink-800/20 pt-3">
+                        {% if skill.full_body %}<div class="md-render text-ink-300 text-xs">{{ skill.full_body }}</div>{% endif %}
+                        <p class="text-ink-600 text-xs mt-2 font-mono">{{ skill.path }}</p>
                     </div>
                 </details>
                 {% endfor %}
