@@ -255,6 +255,67 @@ async def search_messages(
     return {"results": results[:limit], "total": len(results), "query": q}
 
 
+@router.get("/sessions/{session_id}/message/{message_uuid}/context")
+async def get_message_context(session_id: str, message_uuid: str, surrounding: int = Query(2, le=5)) -> dict:
+    """Get a message and its surrounding messages for expanded search result context."""
+    from ..data.archive import SessionArchive
+    archive = SessionArchive()
+
+    # Try live session first
+    session_file = parser._find_session_file(session_id)
+
+    msg_list = []
+    if session_file:
+        try:
+            msg_list = [
+                {"uuid": m.uuid, "type": m.type, "content": m.content or "",
+                 "timestamp": m.timestamp.isoformat()}
+                for m in parser._stream_messages(session_file)
+                if m.type in ("user", "assistant") and m.content
+            ]
+        except Exception:
+            pass
+
+    if not msg_list:
+        # Try archive
+        archived_msgs = archive.get_archived_messages(session_id)
+        msg_list = [
+            {"uuid": m["uuid"] or "", "type": m["type"], "content": m["content"] or "",
+             "timestamp": m["timestamp"]}
+            for m in archived_msgs
+            if m["type"] in ("user", "assistant") and m.get("content")
+        ]
+
+    # Find the target message and return surrounding context
+    target_idx = None
+    for i, m in enumerate(msg_list):
+        if m["uuid"] == message_uuid:
+            target_idx = i
+            break
+
+    if target_idx is None:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    start = max(0, target_idx - surrounding)
+    end = min(len(msg_list), target_idx + surrounding + 1)
+    context_msgs = []
+    for i in range(start, end):
+        m = msg_list[i]
+        # Truncate very long messages but keep more than the snippet
+        content = m["content"]
+        if len(content) > 2000:
+            content = content[:2000] + "..."
+        context_msgs.append({
+            "uuid": m["uuid"],
+            "type": m["type"],
+            "content": content,
+            "timestamp": m["timestamp"],
+            "is_target": i == target_idx,
+        })
+
+    return {"messages": context_msgs, "session_id": session_id, "message_uuid": message_uuid}
+
+
 @router.get("/sessions/{session_id}/artifacts")
 async def get_session_artifacts(session_id: str) -> dict:
     """Get artifacts for a specific session."""

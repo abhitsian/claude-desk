@@ -431,19 +431,55 @@ def generate_prompting_playbook(
         score += 10
     score = max(20, min(95, score))
 
-    # Generate recommendations
+    # Collect real session examples for recommendations
+    vague_openers = []  # sessions with short/vague first messages
+    heavy_paste_sessions = []  # sessions with high paste ratio
+    clarification_heavy = []  # sessions with many clarifications
+    high_leverage_sessions = []  # sessions with good delegation
+    tool_heavy_sessions = []  # sessions with many tool calls
+
+    for eff in all_efficiencies:
+        sid = eff.get("session_id", "")
+        title = eff.get("title", sid[:8])
+        fml = eff.get("first_msg_length", 0)
+        first_msg = ""
+        # Get actual first message text
+        try:
+            msgs = parser.get_session_messages(sid, limit=5)
+            user_msgs = [m for m in msgs if m.type == "user"]
+            if user_msgs:
+                first_msg = user_msgs[0].content.strip()[:200]
+        except Exception:
+            pass
+
+        if fml < 80 and first_msg:
+            vague_openers.append({"session_id": sid, "title": title, "first_msg": first_msg, "length": fml})
+        if eff.get("paste_ratio", 0) > 0.4:
+            heavy_paste_sessions.append({"session_id": sid, "title": title, "paste_ratio": eff["paste_ratio"], "pasted_chars": int(eff.get("total_user_chars", 0) * eff["paste_ratio"])})
+        if eff.get("clarification_count", 0) >= 3:
+            clarification_heavy.append({"session_id": sid, "title": title, "count": eff["clarification_count"]})
+        if eff.get("total_assistant_chars", 0) > eff.get("total_user_chars", 1) * 10:
+            high_leverage_sessions.append({"session_id": sid, "title": title, "ratio": round(eff.get("total_assistant_chars", 0) / max(1, eff.get("total_user_chars", 1)))})
+        if eff.get("tool_calls", 0) > 10:
+            tool_heavy_sessions.append({"session_id": sid, "title": title, "tool_calls": eff["tool_calls"]})
+
+    # Generate recommendations with real examples
     recommendations = []
 
     # 1. First message quality
-    if avg_first_msg_len < 80:
+    if avg_first_msg_len < 80 and vague_openers:
+        examples = vague_openers[:3]
+        example_lines = []
+        for ex in examples:
+            example_lines.append(f'"{ex["first_msg"][:100]}{"..." if len(ex["first_msg"]) > 100 else ""}" ({ex["length"]} chars) — {ex["title"]}')
         recommendations.append({
             "title": "Write richer opening prompts",
-            "description": f"Your average first message is {int(avg_first_msg_len)} characters. Sessions with detailed openers (200+ chars) typically need 40% fewer follow-ups.",
+            "description": f"Your average first message is {int(avg_first_msg_len)} characters. {len(vague_openers)} of {len(all_efficiencies)} sessions started with a vague opener.",
             "action": "Structure as: [Your role/context] + [Specific question] + [Desired format/constraints]",
-            "example": "Instead of: 'help me with this job posting'\nTry: 'I'm a Director of PM at ServiceNow (just promoted Feb 2026). Evaluate this Adobe Director role against my current position — compare comp, career trajectory, market position, and relocation cost from Hyderabad to Bangalore.'",
+            "sessions": [{"session_id": ex["session_id"], "title": ex["title"], "detail": f'"{ex["first_msg"][:100]}..." ({ex["length"]} chars)'} for ex in examples],
             "impact": "high",
         })
-    else:
+    elif avg_first_msg_len >= 80:
         recommendations.append({
             "title": "Your opening prompts are strong",
             "description": f"Average first message is {int(avg_first_msg_len)} chars — you give Claude enough context to work with.",
@@ -451,60 +487,63 @@ def generate_prompting_playbook(
         })
 
     # 2. Pasted content
-    if avg_paste_ratio > 0.3:
+    if avg_paste_ratio > 0.3 and heavy_paste_sessions:
+        heavy_paste_sessions.sort(key=lambda x: -x["pasted_chars"])
+        examples = heavy_paste_sessions[:3]
         recommendations.append({
             "title": "Summarize before pasting",
-            "description": f"{int(avg_paste_ratio * 100)}% of your input is pasted external content. Raw pasting wastes input tokens on irrelevant text.",
+            "description": f"{int(avg_paste_ratio * 100)}% of your input is pasted external content across {len(heavy_paste_sessions)} sessions.",
             "action": "Before pasting, add a 1-line instruction. For large content, paste only the relevant section.",
-            "example": "Instead of pasting a full 200-line job posting:\n'Here are the key requirements for this Adobe Director role: [paste only the What You'll Do and What You Bring sections]. Is this a good fit given my background?'",
+            "sessions": [{"session_id": ex["session_id"], "title": ex["title"], "detail": f'{int(ex["paste_ratio"]*100)}% pasted ({ex["pasted_chars"]:,} chars)'} for ex in examples],
             "impact": "high",
         })
 
     # 3. Clarification loops
-    if avg_clarifications > 2:
+    if avg_clarifications > 2 and clarification_heavy:
+        clarification_heavy.sort(key=lambda x: -x["count"])
+        examples = clarification_heavy[:3]
         recommendations.append({
             "title": "Reduce back-and-forth clarifications",
-            "description": f"You average {avg_clarifications:.1f} clarification exchanges per session. Each round costs tokens and time.",
+            "description": f"You average {avg_clarifications:.1f} clarification exchanges per session. {len(clarification_heavy)} sessions had 3+ rounds of back-and-forth.",
             "action": "Anticipate what Claude will need to know. Include constraints, examples of desired output, and what NOT to do.",
-            "example": "Add to your prompts: 'Don't just list pros/cons — give me a clear recommendation with specific numbers. Format as a comparison table.'",
+            "sessions": [{"session_id": ex["session_id"], "title": ex["title"], "detail": f'{ex["count"]} clarification rounds'} for ex in examples],
             "impact": "medium",
         })
 
     # 4. Batching
-    short_sessions = sum(1 for s in sessions if s.message_count < 5)
-    if short_sessions > len(sessions) * 0.3:
+    short_sessions_list = [s for s in period_sessions if s.message_count < 5]
+    if len(short_sessions_list) > len(period_sessions) * 0.3:
+        examples = short_sessions_list[:3]
         recommendations.append({
             "title": "Batch related quick questions",
-            "description": f"{int(short_sessions / len(sessions) * 100)}% of your sessions are very short (< 5 messages). Each new session has startup overhead.",
+            "description": f"{len(short_sessions_list)} of {len(period_sessions)} sessions ({int(len(short_sessions_list)/len(period_sessions)*100)}%) are very short (< 5 messages).",
             "action": "Group related questions into one session. Use numbered lists for multiple questions.",
+            "sessions": [{"session_id": s.session_id, "title": s.title or s.session_id[:8], "detail": f'{s.message_count} messages'} for s in examples],
             "impact": "medium",
         })
 
     # 5. Leverage patterns
-    if high_leverage > len(all_efficiencies) * 0.3:
+    if high_leverage_sessions:
+        high_leverage_sessions.sort(key=lambda x: -x["ratio"])
+        examples = high_leverage_sessions[:3]
         recommendations.append({
             "title": "Good delegation pattern",
-            "description": f"{int(high_leverage / len(all_efficiencies) * 100)}% of sessions show high leverage — Claude produces 10x+ more output than your input. You're using Claude as a force multiplier, not a chatbot.",
+            "description": f"{len(high_leverage_sessions)} of {len(all_efficiencies)} sessions show high leverage — Claude produces 10x+ more output than your input.",
+            "sessions": [{"session_id": ex["session_id"], "title": ex["title"], "detail": f'{ex["ratio"]}x output ratio'} for ex in examples],
             "impact": "positive",
         })
 
     # 6. Skills and tools
-    if total_tool_calls > 50:
+    if total_tool_calls > 50 and tool_heavy_sessions:
+        tool_heavy_sessions.sort(key=lambda x: -x["tool_calls"])
+        examples = tool_heavy_sessions[:3]
         recommendations.append({
-            "title": "You're a power user of tools",
-            "description": f"{total_tool_calls} tool calls across {len(all_efficiencies)} sessions. Consider creating more /skills for your recurring workflows to reduce prompting overhead.",
-            "action": "Look at your most common session patterns and create skills that encode the context, so you don't re-explain it each time.",
-            "example": "You created /pin and /recall — think about what other multi-step workflows you repeat.",
+            "title": "Power tool user",
+            "description": f"{total_tool_calls} tool calls across {len(all_efficiencies)} sessions. {len(tool_heavy_sessions)} sessions were tool-heavy.",
+            "action": "Consider creating /skills for recurring tool-heavy workflows to reduce prompting overhead.",
+            "sessions": [{"session_id": ex["session_id"], "title": ex["title"], "detail": f'{ex["tool_calls"]} tool calls'} for ex in examples],
             "impact": "medium",
         })
-
-    # 7. Context reuse
-    recommendations.append({
-        "title": "Use /recall for recurring topics",
-        "description": "When starting a conversation about a topic you've discussed before, use /recall to load previous context instead of re-explaining.",
-        "action": "Pin important conversations with /pin. Start follow-up sessions with /recall <keyword>.",
-        "impact": "medium",
-    })
 
     # Generate CLAUDE.md block
     claude_md_lines = [

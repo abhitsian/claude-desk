@@ -115,7 +115,20 @@ launchctl unload "$ARCHIVER_PLIST" 2>/dev/null || true
 launchctl load "$ARCHIVER_PLIST"
 echo "  Archiver scheduled (daily at 3 AM)"
 
-# 4. Initial archive
+# 4. Install Claude Code skills
+if [ -d "$SCRIPT_DIR/skills" ]; then
+    echo "Installing Claude Code skills..."
+    SKILLS_DEST="$HOME/.claude/skills"
+    mkdir -p "$SKILLS_DEST"
+    for skill_dir in "$SCRIPT_DIR/skills"/*/; do
+        skill_name=$(basename "$skill_dir")
+        mkdir -p "$SKILLS_DEST/$skill_name"
+        cp -R "$skill_dir"* "$SKILLS_DEST/$skill_name/"
+        echo "  Installed /$skill_name"
+    done
+fi
+
+# 5. Initial archive
 echo ""
 echo "Running initial archive of all sessions..."
 cd "$SCRIPT_DIR"

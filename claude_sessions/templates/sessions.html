@@ -28,19 +28,32 @@
                        autofocus>
             </div>
             <input type="hidden" name="mode" value="{{ mode }}" id="search-mode-input">
+            <input type="hidden" name="sort" value="{{ sort }}" id="search-sort-input">
             <button type="submit" class="btn-action btn-primary px-5">Search</button>
         </form>
         {% if query %}
         <div class="flex items-center gap-4 mt-3">
             <span class="text-ink-600 text-xs">Show results as:</span>
-            <a href="/sessions?q={{ query }}&mode=sessions"
+            <a href="/sessions?q={{ query }}&mode=sessions&sort={{ sort }}"
                class="text-xs {% if mode != 'messages' %}text-copper-400 font-semibold{% else %}text-ink-500 hover:text-ink-300{% endif %} transition-colors">
                 Sessions ({{ total }})
             </a>
-            <a href="/sessions?q={{ query }}&mode=messages"
+            <a href="/sessions?q={{ query }}&mode=messages&sort={{ sort }}"
                class="text-xs {% if mode == 'messages' %}text-copper-400 font-semibold{% else %}text-ink-500 hover:text-ink-300{% endif %} transition-colors">
                 Messages ({{ message_total }})
             </a>
+            {% if mode == 'messages' %}
+            <span class="text-ink-700 mx-1">|</span>
+            <span class="text-ink-600 text-xs">Sort:</span>
+            <a href="/sessions?q={{ query }}&mode=messages&sort=relevance"
+               class="text-xs {% if sort != 'recent' %}text-copper-400 font-semibold{% else %}text-ink-500 hover:text-ink-300{% endif %} transition-colors">
+                Relevance
+            </a>
+            <a href="/sessions?q={{ query }}&mode=messages&sort=recent"
+               class="text-xs {% if sort == 'recent' %}text-copper-400 font-semibold{% else %}text-ink-500 hover:text-ink-300{% endif %} transition-colors">
+                Recent
+            </a>
+            {% endif %}
         </div>
         {% endif %}
 
@@ -81,50 +94,69 @@
     <!-- ===== MESSAGE-LEVEL RESULTS ===== -->
     <div class="space-y-1">
         {% for msg in message_results %}
-        <a href="/sessions/{{ msg.session_id }}#msg-{{ msg.message_uuid }}"
-           class="session-entry block py-3.5 px-4 -mx-4 rounded-lg group fade-up">
-            <div class="flex items-start gap-3">
-                <!-- Message type indicator -->
-                <div class="shrink-0 mt-1">
-                    {% if msg.message_type == 'user' %}
-                    <div class="w-5 h-5 rounded-full bg-copper-500/12 border border-copper-500/20 flex items-center justify-center">
-                        <svg class="w-2.5 h-2.5 text-copper-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0"/></svg>
-                    </div>
-                    {% else %}
-                    <div class="w-5 h-5 rounded-full bg-ink-700/40 border border-ink-600/30 flex items-center justify-center">
-                        <svg class="w-2.5 h-2.5 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846"/></svg>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <div class="flex-1 min-w-0">
-                    <!-- Session title + time -->
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="text-ink-400 text-xs font-medium group-hover:text-copper-400 transition-colors">{{ msg.session_title or msg.session_id[:8] }}</span>
-                        <span class="text-ink-700 text-[10px] font-mono">{{ msg.session_id[:8] }}</span>
-                        {% if msg.timestamp %}
-                        <span class="text-ink-600 text-[10px]">{{ msg.timestamp[:16] }}</span>
+        <div class="search-result fade-up" data-session="{{ msg.session_id }}" data-uuid="{{ msg.message_uuid }}">
+            <div class="session-entry block py-3.5 px-4 -mx-4 rounded-lg group cursor-pointer"
+                 onclick="toggleContext(this.closest('.search-result'))">
+                <div class="flex items-start gap-3">
+                    <!-- Message type indicator -->
+                    <div class="shrink-0 mt-1">
+                        {% if msg.message_type == 'user' %}
+                        <div class="w-5 h-5 rounded-full bg-copper-500/12 border border-copper-500/20 flex items-center justify-center">
+                            <svg class="w-2.5 h-2.5 text-copper-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0"/></svg>
+                        </div>
+                        {% else %}
+                        <div class="w-5 h-5 rounded-full bg-ink-700/40 border border-ink-600/30 flex items-center justify-center">
+                            <svg class="w-2.5 h-2.5 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846"/></svg>
+                        </div>
                         {% endif %}
                     </div>
 
-                    <!-- Snippet with highlighted matches -->
-                    <p class="text-ink-300 text-sm leading-relaxed search-snippet">{{ msg.snippet | replace('>>>', '<mark class="bg-copper-500/20 text-copper-300 px-0.5 rounded">') | replace('<<<', '</mark>') | safe }}</p>
-                </div>
+                    <div class="flex-1 min-w-0">
+                        <!-- Session title + time -->
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-ink-400 text-xs font-medium group-hover:text-copper-400 transition-colors">{{ msg.session_title or msg.session_id[:8] }}</span>
+                            <span class="text-ink-700 text-[10px] font-mono">{{ msg.session_id[:8] }}</span>
+                            {% if msg.timestamp %}
+                            <span class="text-ink-600 text-[10px]">{{ msg.timestamp[:16] }}</span>
+                            {% endif %}
+                        </div>
 
-                <!-- Score + match type indicators -->
-                <div class="flex flex-col items-end gap-1 shrink-0 mt-1">
-                    {% if msg.semantic_score is defined and msg.semantic_score > 0 %}
-                    <span class="text-[9px] px-1 py-0 rounded bg-sage-500/10 text-sage-400 font-mono" title="Semantic similarity">{{ "%.0f"|format(msg.semantic_score * 100) }}%</span>
-                    {% endif %}
-                    {% if msg.fts_score is defined and msg.fts_score > 0 %}
-                    <span class="text-[9px] px-1 py-0 rounded bg-copper-500/10 text-copper-400 font-mono" title="Keyword match">kw</span>
-                    {% endif %}
-                    <svg class="w-3.5 h-3.5 text-ink-700 group-hover:text-copper-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
-                    </svg>
+                        <!-- Snippet with highlighted matches -->
+                        <p class="text-ink-300 text-sm leading-relaxed search-snippet">{{ msg.snippet | replace('>>>', '<mark class="bg-copper-500/20 text-copper-300 px-0.5 rounded">') | replace('<<<', '</mark>') | safe }}</p>
+                    </div>
+
+                    <!-- Score + match type indicators -->
+                    <div class="flex flex-col items-end gap-1 shrink-0 mt-1">
+                        {% if msg.semantic_score is defined and msg.semantic_score > 0 %}
+                        <span class="text-[9px] px-1 py-0 rounded bg-sage-500/10 text-sage-400 font-mono" title="Semantic similarity">{{ "%.0f"|format(msg.semantic_score * 100) }}%</span>
+                        {% endif %}
+                        {% if msg.fts_score is defined and msg.fts_score > 0 %}
+                        <span class="text-[9px] px-1 py-0 rounded bg-copper-500/10 text-copper-400 font-mono" title="Keyword match">kw</span>
+                        {% endif %}
+                        <svg class="w-3 h-3 text-ink-700 group-hover:text-copper-400 transition-transform expand-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
                 </div>
             </div>
-        </a>
+
+            <!-- Expandable context panel (hidden by default) -->
+            <div class="context-panel hidden ml-8 mr-4 mb-2 border-l-2 border-ink-700/40 pl-4">
+                <div class="context-loading text-ink-600 text-xs py-3">Loading context...</div>
+                <div class="context-messages hidden"></div>
+                <div class="flex items-center gap-3 mt-3 pt-2 border-t border-ink-800/30">
+                    <a href="/sessions/{{ msg.session_id }}#msg-{{ msg.message_uuid }}"
+                       class="text-xs text-copper-400 hover:text-copper-300 transition-colors flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                        View in conversation
+                    </a>
+                    <button onclick="event.stopPropagation(); copyResume('{{ msg.session_id }}')"
+                            class="text-xs text-ink-500 hover:text-copper-400 font-mono transition-colors">
+                        resume
+                    </button>
+                </div>
+            </div>
+        </div>
         {% endfor %}
     </div>
 
@@ -224,6 +256,60 @@ function pinSession(sessionId) {
             setTimeout(() => location.reload(), 500);
         }
     });
+}
+
+function toggleContext(resultEl) {
+    const panel = resultEl.querySelector('.context-panel');
+    const arrow = resultEl.querySelector('.expand-arrow');
+    const isHidden = panel.classList.contains('hidden');
+
+    if (isHidden) {
+        panel.classList.remove('hidden');
+        arrow.style.transform = 'rotate(180deg)';
+        // Fetch context if not already loaded
+        if (!resultEl.dataset.loaded) {
+            const sessionId = resultEl.dataset.session;
+            const uuid = resultEl.dataset.uuid;
+            fetch(`/api/sessions/${sessionId}/message/${uuid}/context`)
+                .then(r => r.json())
+                .then(data => {
+                    resultEl.dataset.loaded = '1';
+                    const loading = panel.querySelector('.context-loading');
+                    const container = panel.querySelector('.context-messages');
+                    loading.classList.add('hidden');
+                    container.classList.remove('hidden');
+
+                    let html = '';
+                    for (const msg of data.messages) {
+                        const isUser = msg.type === 'user';
+                        const isTarget = msg.is_target;
+                        const bgClass = isTarget
+                            ? (isUser ? 'bg-copper-500/10 border border-copper-500/20' : 'bg-ink-700/40 border border-copper-500/20')
+                            : (isUser ? 'bg-copper-500/5' : 'bg-ink-800/30');
+                        const label = isUser ? 'You' : 'Claude';
+                        const time = msg.timestamp ? msg.timestamp.substring(11, 16) : '';
+                        const content = msg.content
+                            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                            .replace(/\n/g, '<br>');
+                        html += `<div class="py-2.5 px-3 rounded-lg mb-1.5 ${bgClass}">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-[10px] font-semibold ${isUser ? 'text-copper-400' : 'text-ink-400'}">${label}</span>
+                                <span class="text-[10px] text-ink-600 font-mono">${time}</span>
+                                ${isTarget ? '<span class="text-[9px] px-1 rounded bg-copper-500/15 text-copper-400">matched</span>' : ''}
+                            </div>
+                            <div class="text-sm text-ink-300 leading-relaxed whitespace-pre-wrap break-words">${content}</div>
+                        </div>`;
+                    }
+                    container.innerHTML = html;
+                })
+                .catch(() => {
+                    panel.querySelector('.context-loading').textContent = 'Failed to load context';
+                });
+        }
+    } else {
+        panel.classList.add('hidden');
+        arrow.style.transform = '';
+    }
 }
 
 function buildSemanticIndex(btn) {

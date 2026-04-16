@@ -115,10 +115,17 @@
                         </div>
                     </div>
                 </div>
-                <button onclick="event.preventDefault(); copyResume('{{ session.session_id }}')"
-                        class="text-xs text-ink-500 hover:text-copper-400 font-mono px-2 py-1 rounded border border-ink-800/50 hover:border-copper-500/30 transition-all opacity-0 group-hover:opacity-100 ml-4">
-                    resume
-                </button>
+                <div class="flex items-center gap-2 ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onclick="event.preventDefault(); renamePin('{{ session.session_id }}', {{ (fav_labels[session.session_id] if fav_labels and session.session_id in fav_labels else '') | tojson }})"
+                            class="text-xs text-ink-500 hover:text-copper-400 font-mono px-2 py-1 rounded border border-ink-800/50 hover:border-copper-500/30 transition-all"
+                            title="Rename pin">
+                        rename
+                    </button>
+                    <button onclick="event.preventDefault(); copyResume('{{ session.session_id }}')"
+                            class="text-xs text-ink-500 hover:text-copper-400 font-mono px-2 py-1 rounded border border-ink-800/50 hover:border-copper-500/30 transition-all">
+                        resume
+                    </button>
+                </div>
             </div>
         </a>
         {% endfor %}
@@ -178,6 +185,21 @@ function pinSession(sessionId) {
         if (data.ok) {
             showToast(label ? `Pinned as "${label}"` : 'Pin updated');
             setTimeout(() => location.reload(), 500);
+        }
+    });
+}
+
+function renamePin(sessionId, currentLabel) {
+    const label = prompt('Rename pin:', currentLabel || '');
+    if (label === null) return;
+    fetch(`/api/favorites/${sessionId}/pin`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ label: label })
+    }).then(r => r.json()).then(data => {
+        if (data.ok) {
+            showToast(label ? `Renamed to "${label}"` : 'Label cleared');
+            setTimeout(() => location.reload(), 400);
         }
     });
 }
