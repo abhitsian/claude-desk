@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>autoDream — Memory Consolidation</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300;1,400&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d0c0a;
+    color: #e8d5a3;
+    font-family: 'DM Sans', sans-serif;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    cursor: pointer;
+    user-select: none;
+  }
+  canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+  #overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .cluster-label {
+    position: absolute;
+    font-family: 'EB Garamond', serif;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    color: rgba(232, 213, 163, 0);
+    transition: color 2s ease;
+    white-space: nowrap;
+    text-align: center;
+    transform: translate(-50%, -50%);
+  }
+  .cluster-label.visible {
+    color: rgba(232, 213, 163, 0.55);
+  }
+  .cluster-label.dim {
+    color: rgba(232, 213, 163, 0.2);
+  }
+  .contradiction {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'EB Garamond', serif;
+    font-size: 22px;
+    font-weight: 400;
+    font-style: italic;
+    color: rgba(232, 213, 163, 0);
+    text-align: center;
+    transition: color 1.2s ease;
+    white-space: nowrap;
+  }
+  .contradiction.visible {
+    color: rgba(232, 213, 163, 0.8);
+  }
+  .contradiction .old {
+    text-decoration: line-through;
+    opacity: 0.5;
+  }
+  .contradiction .arrow {
+    margin: 0 8px;
+    opacity: 0.4;
+  }
+  .synthesis {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    max-width: 560px;
+    opacity: 0;
+    transition: opacity 3s ease;
+  }
+  .synthesis.visible {
+    opacity: 1;
+  }
+  .synthesis .main-text {
+    font-family: 'EB Garamond', serif;
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1.65;
+    color: rgba(232, 213, 163, 0.85);
+    font-style: italic;
+  }
+  .synthesis .meta {
+    margin-top: 28px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 300;
+    letter-spacing: 0.08em;
+    color: rgba(232, 213, 163, 0.35);
+  }
+  #progress-bar {
+    position: fixed;
+    bottom: 0; left: 0;
+    height: 2px;
+    background: rgba(232, 213, 163, 0.25);
+    z-index: 20;
+    transition: width 0.1s linear;
+  }
+  #pause-indicator {
+    position: fixed;
+    bottom: 16px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: rgba(232, 213, 163, 0.3);
+    z-index: 20;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+  #pause-indicator.visible { opacity: 1; }
+  #replay-btn {
+    position: fixed;
+    bottom: 30px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: rgba(232, 213, 163, 0.5);
+    background: rgba(232, 213, 163, 0.06);
+    border: 1px solid rgba(232, 213, 163, 0.15);
+    padding: 8px 24px;
+    border-radius: 20px;
+    cursor: pointer;
+    z-index: 20;
+    display: none;
+    pointer-events: all;
+    transition: all 0.3s ease;
+  }
+  #replay-btn:hover {
+    color: rgba(232, 213, 163, 0.8);
+    border-color: rgba(232, 213, 163, 0.3);
+    background: rgba(232, 213, 163, 0.1);
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="overlay"></div>
+<div id="progress-bar"></div>
+<div id="pause-indicator">PAUSED</div>
+<button id="replay-btn" onclick="replay()">replay</button>
+
+<script>
+const DURATION = 60000;
+const COLORS = {
+  vulnerability: '#a87ad4',
+  clarity: '#e8d5a3',
+  momentum: '#5ad4a8',
+  breakthrough: '#5ad4d4',
+  tension: '#d45a8a',
+  focus: '#5a8ad4',
+  playfulness: '#d4a85a'
+};
+
+const ORBS_DATA = [
+  { emotion: 'vulnerability', intensity: 0.88 },
+  { emotion: 'clarity', intensity: 0.82 },
+  { emotion: 'momentum', intensity: 0.71 },
+  { emotion: 'vulnerability', intensity: 0.75 },
+  { emotion: 'momentum', intensity: 0.65 },
+  { emotion: 'clarity', intensity: 0.85 },
+  { emotion: 'momentum', intensity: 0.72 },
+  { emotion: 'focus', intensity: 0.68 },
+  { emotion: 'clarity', intensity: 0.72 },
+  { emotion: 'focus', intensity: 0.61 },
+  { emotion: 'focus', intensity: 0.72 },
+  { emotion: 'tension', intensity: 0.65 },
+  { emotion: 'breakthrough', intensity: 0.85 },
+  { emotion: 'tension', intensity: 0.75 },
+  { emotion: 'focus', intensity: 0.6 },
+  { emotion: 'breakthrough', intensity: 0.82 },
+  { emotion: 'momentum', intensity: 0.65 },
+  { emotion: 'tension', intensity: 0.72 },
+  { emotion: 'vulnerability', intensity: 0.6 },
+  { emotion: 'playfulness', intensity: 0.75 }
+];
+
+const CLUSTERS = [
+  { label: 'The Recursion Engine', x: 0.3, y: 0.48, orbs: [0, 3, 12, 15] },
+  { label: 'Scaffolding Mind', x: 0.7, y: 0.48, orbs: [1, 5, 8, 7] },
+  { label: 'Taste vs. Outcome', x: 0.5, y: 0.22, orbs: [2, 4, 19] },
+  { label: 'Metaphor as Architecture', x: 0.25, y: 0.72, orbs: [9, 10, 14] },
+  { label: 'Meeting-to-System Velocity', x: 0.72, y: 0.24, orbs: [6, 16, 11] },
+  { label: 'The Pulled Session', x: 0.75, y: 0.74, orbs: [13, 17, 18] }
+];
+
+const CONTRADICTIONS = [
+  { old: 'discipline', arrow: '\u2192', nu: 'pulled by the unresolved' },
+  { old: 'scope creep', arrow: '\u2192', nu: 'generalization was the goal' },
+  { old: 'collaboration', arrow: '\u2192', nu: 'friction-seeking' },
+  { old: 'sustained focus', arrow: '\u2192', nu: 'hidden register shifts' }
+];
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const progressBar = document.getElementById('progress-bar');
+const pauseIndicator = document.getElementById('pause-indicator');
+const replayBtn = document.getElementById('replay-btn');
+
+let W, H, dpr;
+let startTime, elapsed = 0, paused = false, pauseStart = 0, totalPaused = 0;
+let finished = false;
+let orbs = [];
+let clusterLabels = [];
+let contradictionEl = null;
+let synthesisEl = null;
+let currentContradiction = -1;
+let phase3Started = false;
+let phase4Started = false;
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return { r, g, b };
+}
+
+function easeInOut(t) {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+}
+
+function easeOut(t) {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+class Orb {
+  constructor(data, index) {
+    this.emotion = data.emotion;
+    this.intensity = data.intensity;
+    this.color = COLORS[data.emotion];
+    this.rgb = hexToRgb(this.color);
+    this.baseRadius = 8 + (data.intensity - 0.6) * (20 - 8) / 0.3;
+    this.radius = this.baseRadius;
+    this.index = index;
+
+    // Start off-screen from random edge
+    const edge = Math.floor(Math.random() * 4);
+    if (edge === 0) { this.x = -30; this.y = Math.random() * H; }
+    else if (edge === 1) { this.x = W + 30; this.y = Math.random() * H; }
+    else if (edge === 2) { this.x = Math.random() * W; this.y = -30; }
+    else { this.x = Math.random() * W; this.y = H + 30; }
+
+    // Drift target (random area in canvas)
+    this.driftX = W * 0.15 + Math.random() * W * 0.7;
+    this.driftY = H * 0.15 + Math.random() * H * 0.7;
+    this.entryDelay = Math.random() * 4000;
+    this.entryDuration = 4000 + Math.random() * 3000;
+
+    // Brownian motion
+    this.bvx = 0;
+    this.bvy = 0;
+    this.brownianScale = 0.15 + Math.random() * 0.15;
+
+    // Cluster target
+    this.clusterTarget = null;
+    this.merging = false;
+    this.merged = false;
+    this.mergeTarget = null;
+    this.opacity = 0;
+    this.alive = true;
+  }
+
+  setClusterTarget(cx, cy) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 20 + Math.random() * 35;
+    this.clusterTarget = { x: cx + Math.cos(angle) * dist, y: cy + Math.sin(angle) * dist };
+  }
+
+  update(t, dt) {
+    const sec = t / 1000;
+
+    // Phase 1: drift in
+    if (t < 12000) {
+      if (t > this.entryDelay) {
+        const entryProgress = Math.min(1, (t - this.entryDelay) / this.entryDuration);
+        const ep = easeOut(entryProgress);
+        const startX = this.x;
+        const startY = this.y;
+
+        if (entryProgress < 1) {
+          this.x += (this.driftX - this.x) * ep * dt / 1000;
+          this.y += (this.driftY - this.y) * ep * dt / 1000;
+        }
+        this.opacity = Math.min(1, entryProgress * 1.5);
+      }
+    }
+
+    // Phase 2: drift toward cluster
+    if (t >= 12000 && t < 30000 && this.clusterTarget && !this.merged) {
+      const clusterProgress = Math.min(1, (t - 12000) / 12000);
+      const cp = easeInOut(clusterProgress);
+      this.x += (this.clusterTarget.x - this.x) * cp * dt / 800;
+      this.y += (this.clusterTarget.y - this.y) * cp * dt / 800;
+    }
+
+    // Phase 3: merge
+    if (t >= 30000 && t < 45000 && this.mergeTarget && !this.merged) {
+      const mergeProgress = Math.min(1, (t - 30000) / 6000);
+      const mp = easeInOut(mergeProgress);
+      this.x += (this.mergeTarget.x - this.x) * mp * dt / 400;
+      this.y += (this.mergeTarget.y - this.y) * mp * dt / 400;
+      this.opacity = Math.max(0, 1 - mergeProgress);
+      if (mergeProgress >= 1) this.merged = true;
+    }
+
+    // Brownian motion (always, while alive and visible)
+    if (this.opacity > 0 && !this.merged) {
+      this.bvx += (Math.random() - 0.5) * this.brownianScale;
+      this.bvy += (Math.random() - 0.5) * this.brownianScale;
+      this.bvx *= 0.95;
+      this.bvy *= 0.95;
+      this.x += this.bvx;
+      this.y += this.bvy;
+    }
+  }
+
+  draw() {
+    if (this.opacity <= 0 || this.merged) return;
+    const { r, g, b } = this.rgb;
+
+    // Glow
+    const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius * 3);
+    grad.addColorStop(0, `rgba(${r},${g},${b},${0.3 * this.opacity})`);
+    grad.addColorStop(0.5, `rgba(${r},${g},${b},${0.08 * this.opacity})`);
+    grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius * 3, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Core
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${r},${g},${b},${0.7 * this.opacity})`;
+    ctx.fill();
+  }
+}
+
+class IslandSphere {
+  constructor(cluster) {
+    this.x = cluster.x * W;
+    this.y = cluster.y * H;
+    this.orbIndices = cluster.orbs;
+    this.label = cluster.label;
+    this.radius = 0;
+    this.targetRadius = 28;
+    this.opacity = 0;
+    this.colors = cluster.orbs.map(i => hexToRgb(COLORS[ORBS_DATA[i].emotion]));
+    // Blend colors
+    let rr = 0, gg = 0, bb = 0;
+    this.colors.forEach(c => { rr += c.r; gg += c.g; bb += c.b; });
+    const n = this.colors.length;
+    this.blendColor = { r: Math.round(rr/n), g: Math.round(gg/n), b: Math.round(bb/n) };
+    this.breathPhase = Math.random() * Math.PI * 2;
+  }
+
+  update(t) {
+    if (t >= 30000) {
+      const p = Math.min(1, (t - 30000) / 6000);
+      this.opacity = easeInOut(p);
+      this.radius = this.targetRadius * easeOut(p);
+    }
+    // Gentle breathing in phase 4
+    if (t >= 45000) {
+      const breath = Math.sin((t / 1000) * 0.5 + this.breathPhase) * 3;
+      this.radius = this.targetRadius + breath;
+    }
+  }
+
+  draw() {
+    if (this.opacity <= 0) return;
+    const { r, g, b } = this.blendColor;
+
+    // Outer glow
+    const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius * 4);
+    grad.addColorStop(0, `rgba(${r},${g},${b},${0.25 * this.opacity})`);
+    grad.addColorStop(0.4, `rgba(${r},${g},${b},${0.08 * this.opacity})`);
+    grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius * 4, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Core
+    const coreGrad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
+    coreGrad.addColorStop(0, `rgba(${r+40},${g+40},${b+40},${0.6 * this.opacity})`);
+    coreGrad.addColorStop(1, `rgba(${r},${g},${b},${0.3 * this.opacity})`);
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fillStyle = coreGrad;
+    ctx.fill();
+  }
+}
+
+let islands = [];
+
+function init() {
+  orbs = ORBS_DATA.map((d, i) => new Orb(d, i));
+  islands = CLUSTERS.map(c => new IslandSphere(c));
+
+  // Assign cluster targets
+  CLUSTERS.forEach((cluster, ci) => {
+    cluster.orbs.forEach(oi => {
+      orbs[oi].setClusterTarget(cluster.x * W, cluster.y * H);
+      orbs[oi].mergeTarget = { x: cluster.x * W, y: cluster.y * H };
+    });
+  });
+
+  // Create cluster labels
+  overlay.innerHTML = '';
+  clusterLabels = CLUSTERS.map((c, i) => {
+    const el = document.createElement('div');
+    el.className = 'cluster-label';
+    el.textContent = c.label;
+    el.style.left = (c.x * 100) + '%';
+    el.style.top = (c.y * 100 - 8) + '%';
+    overlay.appendChild(el);
+    return el;
+  });
+
+  // Contradiction element
+  contradictionEl = document.createElement('div');
+  contradictionEl.className = 'contradiction';
+  overlay.appendChild(contradictionEl);
+
+  // Synthesis element
+  synthesisEl = document.createElement('div');
+  synthesisEl.className = 'synthesis';
+  synthesisEl.innerHTML = `
+    <div class="main-text">"Almost every pattern is the same pattern at different scales. He builds things that fold back on themselves. The recursion is structural. It's how he thinks."</div>
+    <div class="meta">autoDream &mdash; 12 entries consolidated &mdash; Mar 18 to Apr 16</div>
+  `;
+  overlay.appendChild(synthesisEl);
+
+  startTime = performance.now();
+  totalPaused = 0;
+  paused = false;
+  finished = false;
+  elapsed = 0;
+  currentContradiction = -1;
+  phase3Started = false;
+  phase4Started = false;
+  replayBtn.style.display = 'none';
+  pauseIndicator.classList.remove('visible');
+}
+
+function drawConnections(t) {
+  if (t < 14000 || t >= 30000) return;
+  const connOpacity = Math.min(1, (t - 14000) / 4000);
+  if (t >= 26000) {
+    const fadeOut = 1 - Math.min(1, (t - 26000) / 4000);
+    drawClusterLines(connOpacity * fadeOut);
+  } else {
+    drawClusterLines(connOpacity);
+  }
+}
+
+function drawClusterLines(alpha) {
+  CLUSTERS.forEach(cluster => {
+    for (let i = 0; i < cluster.orbs.length; i++) {
+      for (let j = i + 1; j < cluster.orbs.length; j++) {
+        const a = orbs[cluster.orbs[i]];
+        const b = orbs[cluster.orbs[j]];
+        if (a.opacity > 0 && b.opacity > 0) {
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.strokeStyle = `rgba(232,213,163,${0.08 * alpha})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+  });
+}
+
+function updateContradictions(t) {
+  if (t < 30000 || t >= 45000) {
+    contradictionEl.className = 'contradiction';
+    return;
+  }
+  const phase3T = t - 30000;
+  const idx = Math.min(3, Math.floor(phase3T / 3750));
+  if (idx !== currentContradiction && idx < 4) {
+    currentContradiction = idx;
+    const c = CONTRADICTIONS[idx];
+    contradictionEl.innerHTML = `<span class="old">${c.old}</span><span class="arrow">${c.arrow}</span>${c.nu}`;
+    contradictionEl.className = 'contradiction';
+    requestAnimationFrame(() => {
+      contradictionEl.className = 'contradiction visible';
+    });
+    // Fade out before next
+    setTimeout(() => {
+      if (currentContradiction === idx) {
+        contradictionEl.className = 'contradiction';
+      }
+    }, 3000);
+  }
+}
+
+function updateLabels(t) {
+  if (t >= 16000 && t < 30000) {
+    clusterLabels.forEach(el => {
+      if (!el.classList.contains('visible')) el.classList.add('visible');
+    });
+  } else if (t >= 30000 && t < 45000) {
+    clusterLabels.forEach(el => {
+      el.classList.remove('visible');
+      el.classList.add('dim');
+    });
+  } else if (t >= 45000) {
+    clusterLabels.forEach(el => {
+      el.classList.remove('dim');
+      el.classList.add('visible');
+    });
+  }
+}
+
+function updateSynthesis(t) {
+  if (t >= 47000) {
+    synthesisEl.classList.add('visible');
+  } else {
+    synthesisEl.classList.remove('visible');
+  }
+}
+
+function getBackgroundColor(t) {
+  if (t < 45000) return '#0d0c0a';
+  const warmProgress = Math.min(1, (t - 45000) / 8000);
+  const r = Math.round(13 + warmProgress * 8);
+  const g = Math.round(12 + warmProgress * 5);
+  const b = Math.round(10 + warmProgress * 2);
+  return `rgb(${r},${g},${b})`;
+}
+
+function frame(now) {
+  if (paused) {
+    requestAnimationFrame(frame);
+    return;
+  }
+
+  elapsed = now - startTime - totalPaused;
+  if (elapsed > DURATION) elapsed = DURATION;
+
+  const t = elapsed;
+  const dt = 16; // approximate
+
+  // Background
+  const bg = getBackgroundColor(t);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Update and draw
+  orbs.forEach(o => o.update(t, dt));
+  islands.forEach(s => s.update(t));
+
+  drawConnections(t);
+  orbs.forEach(o => o.draw());
+  islands.forEach(s => s.draw());
+
+  updateLabels(t);
+  updateContradictions(t);
+  updateSynthesis(t);
+
+  // Progress bar
+  progressBar.style.width = ((t / DURATION) * 100) + '%';
+
+  if (t >= DURATION) {
+    finished = true;
+    replayBtn.style.display = 'block';
+  }
+
+  if (!finished) {
+    requestAnimationFrame(frame);
+  } else {
+    // One final draw is enough
+    requestAnimationFrame(frame); // keep breathing animation
+  }
+}
+
+function togglePause() {
+  if (finished) return;
+  if (paused) {
+    totalPaused += performance.now() - pauseStart;
+    paused = false;
+    pauseIndicator.classList.remove('visible');
+  } else {
+    pauseStart = performance.now();
+    paused = true;
+    pauseIndicator.classList.add('visible');
+  }
+}
+
+function replay() {
+  init();
+  requestAnimationFrame(frame);
+}
+
+// Events
+window.addEventListener('resize', () => {
+  resize();
+  // Reposition cluster targets
+  CLUSTERS.forEach((cluster, ci) => {
+    islands[ci].x = cluster.x * W;
+    islands[ci].y = cluster.y * H;
+  });
+});
+
+document.body.addEventListener('click', (e) => {
+  if (e.target === replayBtn) return;
+  togglePause();
+});
+
+resize();
+init();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

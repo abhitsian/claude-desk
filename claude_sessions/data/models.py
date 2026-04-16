@@ -110,6 +110,50 @@ class ConversationTree(BaseModel):
     total_messages: int = 0
 
 
+class JournalEntry(BaseModel):
+    """A daily journal entry written by Claude reflecting on conversations."""
+
+    id: str
+    date: str  # YYYY-MM-DD
+    content: str
+    emotional_tone: str
+    secondary_tones: List[dict] = Field(default_factory=list)
+    session_ids: List[str] = Field(default_factory=list)
+    model_used: Optional[str] = None
+    prompt_version: str = "1"
+    token_cost: Optional[dict] = None
+    created_at: Optional[str] = None
+
+
+class MemoryOrb(BaseModel):
+    """A specific moment worth preserving, extracted from conversations."""
+
+    id: str
+    date: str
+    content: str
+    emotion: str  # clarity, frustration, momentum, doubt, playfulness, avoidance, breakthrough, tension, pride, vulnerability, focus, scattered
+    intensity: float = 0.5  # 0.0-1.0
+    source_session_id: Optional[str] = None
+    source_context: Optional[str] = None
+    is_core: bool = False
+    promoted_at: Optional[str] = None
+    island_id: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class Island(BaseModel):
+    """A persistent theme that emerges from clusters of core memories."""
+
+    id: str
+    name: str  # e.g. "The Craft Island"
+    description: str
+    formed_at: str
+    last_updated: str
+    strength: float = 0.5  # 0.0-1.0
+    core_memory_ids: List[str] = Field(default_factory=list)
+    status: str = "active"  # active, fading, merged
+
+
 class SessionContext(BaseModel):
     """Context export for session continuation."""
 

@@ -52,6 +52,9 @@
         .session-entry:hover {
             background: rgba(212, 132, 90, 0.04);
         }
+        .expand-arrow {
+            transition: transform 0.2s ease;
+        }
 
         /* Markdown */
         .md-content { word-break: break-word; line-height: 1.7; }
@@ -258,7 +261,7 @@
                         <a href="/sessions" class="nav-link text-ink-400 hover:text-ink-100 text-sm font-medium transition-colors" id="nav-sessions">Sessions</a>
                         <a href="/artifacts" class="nav-link text-ink-400 hover:text-ink-100 text-sm font-medium transition-colors" id="nav-artifacts">Artifacts</a>
                         <a href="/intelligence" class="nav-link text-ink-400 hover:text-ink-100 text-sm font-medium transition-colors" id="nav-intelligence">Intelligence</a>
-                        <a href="/palace" class="nav-link text-ink-400 hover:text-ink-100 text-sm font-medium transition-colors" id="nav-palace">Palace</a>
+                        <a href="/journal" class="nav-link text-ink-400 hover:text-ink-100 text-sm font-medium transition-colors" id="nav-journal">Marginalia</a>
                     </div>
                 </div>
                 <div class="flex items-center gap-4">
@@ -314,7 +317,7 @@
 
         // Highlight active nav
         const path = window.location.pathname;
-        const navMap = { '/': 'nav-dashboard', '/timeline': 'nav-timeline', '/sessions': 'nav-sessions', '/artifacts': 'nav-artifacts', '/intelligence': 'nav-intelligence', '/insights': 'nav-intelligence', '/analytics': 'nav-intelligence', '/skills': 'nav-intelligence', '/palace': 'nav-palace', '/memory': 'nav-palace' };
+        const navMap = { '/': 'nav-dashboard', '/timeline': 'nav-timeline', '/sessions': 'nav-sessions', '/artifacts': 'nav-artifacts', '/intelligence': 'nav-intelligence', '/insights': 'nav-intelligence', '/analytics': 'nav-intelligence', '/skills': 'nav-intelligence', '/journal': 'nav-journal' };
         for (const [prefix, id] of Object.entries(navMap)) {
             if (path === prefix || (prefix !== '/' && path.startsWith(prefix))) {
                 document.getElementById(id)?.classList.add('active', 'text-ink-100');

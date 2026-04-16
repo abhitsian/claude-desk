@@ -1,0 +1,488 @@
+{% extends "base.html" %}
+{% block title %}Marginalia — Reflection{% endblock %}
+
+{% block content %}
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --paper: #f5f0e6;
+        --text: #3a3428;
+        --secondary: #9a8e7a;
+        --accent: #a07840;
+    }
+
+    .autodream-page {
+        background: var(--paper);
+        background-image:
+            repeating-linear-gradient(0deg, transparent, transparent 28px, rgba(154,142,122,0.03) 28px, rgba(154,142,122,0.03) 29px),
+            radial-gradient(ellipse at 20% 50%, rgba(160,120,64,0.04) 0%, transparent 50%),
+            radial-gradient(ellipse at 80% 30%, rgba(160,120,64,0.03) 0%, transparent 50%);
+        border-radius: 4px;
+        padding: 48px 40px 80px;
+        position: relative;
+        min-height: 80vh;
+    }
+
+    /* Header bar */
+    .book-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 1100px;
+        margin: 0 auto 1rem;
+        padding: 0 0.5rem;
+    }
+
+    .book-title {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 1.1rem;
+        color: #7a6e5a;
+        font-style: italic;
+    }
+
+    .book-stats {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 0.8rem;
+        color: #a09480;
+    }
+
+    .header-btn {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 0.8rem;
+        color: var(--secondary);
+        padding: 0.3rem 0.7rem;
+        border: 1px solid #d5cfc3;
+        border-radius: 4px;
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .header-btn:hover { background: rgba(180,170,155,0.15); color: #6a5e4a; }
+
+    /* Manuscript grid */
+    .manuscript {
+        display: grid;
+        grid-template-columns: 180px 1fr 80px;
+        gap: 32px;
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    /* Consolidation header */
+    .autodream-header {
+        text-align: center;
+        margin-bottom: 48px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid rgba(154,142,122,0.3);
+        grid-column: 1 / -1;
+    }
+
+    .autodream-header h1 {
+        font-family: 'DM Sans', sans-serif;
+        font-weight: 500;
+        font-size: 13px;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 6px;
+    }
+
+    .autodream-header .meta {
+        font-family: 'DM Sans', sans-serif;
+        font-size: 12px;
+        color: var(--secondary);
+    }
+
+    /* Marginalia */
+    .marginalia { padding-top: 20px; }
+
+    .margin-note {
+        font-family: 'EB Garamond', serif;
+        font-size: 13px;
+        font-style: italic;
+        color: var(--accent);
+        margin-bottom: 24px;
+        padding: 4px 8px 4px 10px;
+        display: block;
+        line-height: 1.4;
+        border-left: 1.5px solid rgba(160,120,64,0.3);
+    }
+
+    /* Palimpsest area */
+    .palimpsest-area { position: relative; min-height: 400px; }
+
+    .ghost-layer {
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        opacity: 0.10;
+        mix-blend-mode: multiply;
+        pointer-events: none;
+        font-family: 'EB Garamond', serif;
+        font-size: 16px;
+        line-height: 1.75;
+        color: var(--text);
+    }
+
+    .ghost-layer.g1 { top: -6px; left: 3px; transform: rotate(-0.3deg); opacity: 0.11; }
+    .ghost-layer.g2 { top: 50px; left: -5px; transform: rotate(0.2deg); opacity: 0.07; }
+    .ghost-layer.g3 { top: 120px; left: 6px; transform: rotate(-0.15deg); opacity: 0.05; }
+
+    .synthesis {
+        position: relative;
+        z-index: 2;
+        font-family: 'EB Garamond', serif;
+        font-size: 18px;
+        line-height: 1.85;
+        color: var(--text);
+    }
+
+    .synthesis p { margin-bottom: 24px; text-indent: 2em; }
+    .synthesis p:first-child { text-indent: 0; }
+
+    .synthesis p:first-child::first-letter {
+        font-size: 3.2em;
+        float: left;
+        line-height: 0.8;
+        margin-right: 8px;
+        margin-top: 6px;
+        color: var(--accent);
+        font-weight: 600;
+    }
+
+    /* Wax seals */
+    .wax-seals { padding-top: 30px; display: flex; flex-direction: column; align-items: center; gap: 28px; }
+
+    .seal { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+
+    .seal-orb {
+        width: 14px; height: 14px; border-radius: 50%;
+        position: relative;
+    }
+
+    .seal-orb::after {
+        content: ''; position: absolute; inset: -4px; border-radius: 50%;
+        background: inherit; opacity: 0.3; filter: blur(4px);
+    }
+
+    .seal-date { font-family: 'DM Sans', sans-serif; font-size: 8px; color: var(--secondary); }
+    .seal-label { font-family: 'DM Sans', sans-serif; font-size: 7px; color: var(--secondary); opacity: 0.7; text-transform: uppercase; letter-spacing: 0.8px; }
+
+    /* Emotion colors */
+    .tone-clarity { background: #e8d5a3; }
+    .tone-frustration { background: #d45a5a; }
+    .tone-momentum { background: #5ad4a8; }
+    .tone-doubt { background: #8a7ad4; }
+    .tone-playfulness { background: #d4a85a; }
+    .tone-avoidance { background: #7a7a7a; }
+    .tone-breakthrough { background: #5ad4d4; }
+    .tone-tension { background: #d45a8a; }
+    .tone-pride { background: #d4c45a; }
+    .tone-vulnerability { background: #a87ad4; }
+    .tone-focus { background: #5a8ad4; }
+    .tone-scattered { background: #a89070; }
+
+    /* Contradictions */
+    .contradictions {
+        margin-top: 48px;
+        padding-top: 36px;
+        border-top: 1px solid rgba(154,142,122,0.25);
+        grid-column: 1 / -1;
+    }
+
+    .section-title {
+        font-family: 'DM Sans', sans-serif;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 2.5px;
+        color: var(--secondary);
+        margin-bottom: 28px;
+        text-align: center;
+    }
+
+    .ornament { text-align: center; color: var(--secondary); font-size: 16px; letter-spacing: 12px; opacity: 0.4; margin: 32px 0 24px; }
+
+    .contradiction-pairs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px 40px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .contradiction {
+        padding: 16px 20px;
+        background: rgba(154,142,122,0.05);
+        border-radius: 4px;
+    }
+
+    .old-text {
+        font-family: 'EB Garamond', serif;
+        font-size: 15px;
+        color: var(--secondary);
+        text-decoration: line-through;
+        text-decoration-color: rgba(160,120,64,0.5);
+        text-decoration-thickness: 1.5px;
+        line-height: 1.5;
+        margin-bottom: 8px;
+        font-style: italic;
+    }
+
+    .arrow { font-family: 'DM Sans', sans-serif; font-size: 10px; color: var(--accent); margin-bottom: 4px; opacity: 0.6; }
+
+    .new-text {
+        font-family: 'EB Garamond', serif;
+        font-size: 15.5px;
+        color: var(--accent);
+        line-height: 1.5;
+        font-weight: 500;
+    }
+
+    .resolution {
+        font-family: 'EB Garamond', serif;
+        font-size: 13px;
+        color: var(--secondary);
+        font-style: italic;
+        margin-top: 8px;
+        line-height: 1.5;
+    }
+
+    /* Islands */
+    .islands-section {
+        margin-top: 48px;
+        padding-top: 36px;
+        border-top: 1px solid rgba(154,142,122,0.25);
+        grid-column: 1 / -1;
+    }
+
+    .island-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .island-card {
+        padding: 20px;
+        background: rgba(154,142,122,0.06);
+        border-radius: 6px;
+        border: 1px solid rgba(154,142,122,0.12);
+    }
+
+    .island-name {
+        font-family: 'EB Garamond', serif;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 8px;
+    }
+
+    .island-narrative {
+        font-family: 'EB Garamond', serif;
+        font-size: 13px;
+        color: #6a5e4a;
+        line-height: 1.6;
+        font-style: italic;
+        margin-bottom: 12px;
+    }
+
+    .island-bar { width: 100%; height: 4px; background: rgba(154,142,122,0.15); border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
+    .island-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; }
+    .island-pct { font-family: 'DM Sans', sans-serif; font-size: 11px; color: var(--secondary); }
+
+    /* Retired patterns */
+    .retired-section {
+        margin-top: 48px;
+        padding-top: 36px;
+        border-top: 1px solid rgba(154,142,122,0.25);
+        grid-column: 1 / -1;
+        max-width: 700px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .retired-item {
+        font-family: 'EB Garamond', serif;
+        font-size: 14px;
+        color: var(--secondary);
+        line-height: 1.6;
+        margin-bottom: 12px;
+        padding-left: 16px;
+        border-left: 2px solid rgba(154,142,122,0.2);
+        text-decoration: line-through;
+        text-decoration-color: rgba(154,142,122,0.3);
+    }
+
+    /* Empty state */
+    .empty-autodream {
+        text-align: center;
+        padding: 80px 40px;
+        grid-column: 1 / -1;
+    }
+</style>
+
+<!-- Header -->
+<div class="book-header">
+    <div style="display: flex; align-items: center; gap: 1.5rem;">
+        <a href="/journal?view=journal" class="book-title" style="text-decoration: none; color: #b5ac9a;">Journal</a>
+        <span style="color: #d5cfc3;">|</span>
+        <a href="/journal?view=autodream" class="book-title" style="text-decoration: none; color: #4a4030;">Reflection</a>
+    </div>
+    <div class="book-stats">
+        {{ stats.total_entries }} entries &middot; {{ stats.total_orbs }} memories &middot; {{ stats.total_islands }} island{{ 's' if stats.total_islands != 1 else '' }}
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <button onclick="runConsolidation()" id="consolidate-btn" class="header-btn">Run Reflection</button>
+    </div>
+</div>
+
+<div class="autodream-page">
+{% if consolidation %}
+<div class="manuscript">
+
+    <!-- Header -->
+    <div class="autodream-header">
+        <h1>Reflection</h1>
+        <div class="meta">
+            {{ consolidation.period_start }} &ndash; {{ consolidation.period_end }}
+            &middot; {{ consolidation.entry_count }} entries compacted
+            &middot; {{ consolidation.orb_count }} orbs processed
+        </div>
+    </div>
+
+    <!-- Left margin: Patterns as marginalia -->
+    <div class="marginalia">
+        {% for pattern in consolidation.patterns[:8] %}
+        <div class="margin-note" style="transform: rotate({{ [-1.5, 2, -0.5, 1.5, -2, 3, -1, 2.5][loop.index0 % 8] }}deg);">
+            {{ pattern.split(' — ')[0] if ' — ' in pattern else pattern[:60] }}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Center: Palimpsest synthesis -->
+    <div class="palimpsest-area">
+        <!-- Ghost layers — older entry text showing through -->
+        {% if entries|length > 3 %}
+        <div class="ghost-layer g1">{{ entries[2].content[:400] if entries[2] else '' }}</div>
+        <div class="ghost-layer g2">{{ entries[4].content[:350] if entries|length > 4 else '' }}</div>
+        <div class="ghost-layer g3">{{ entries[6].content[:300] if entries|length > 6 else '' }}</div>
+        {% endif %}
+
+        <!-- Synthesis: primary layer -->
+        <div class="synthesis">
+            {% for para in consolidation.synthesis.split('\n\n') %}
+            <p>{{ para }}</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Right margin: Orb seals from the period -->
+    <div class="wax-seals">
+        {% for entry in entries[:10] %}
+        <div class="seal">
+            <div class="seal-orb tone-{{ entry.emotional_tone }}"></div>
+            <div class="seal-date">{{ entry.date[5:] }}</div>
+            <div class="seal-label">{{ entry.emotional_tone }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Contradictions Resolved -->
+    {% if consolidation.resolved_contradictions %}
+    <div class="contradictions">
+        <div class="ornament">&middot; &middot; &middot;</div>
+        <div class="section-title">Contradictions Resolved</div>
+        <div class="contradiction-pairs">
+            {% for c in consolidation.resolved_contradictions %}
+            <div class="contradiction">
+                <div class="old-text">&ldquo;{{ c.early }}&rdquo;</div>
+                <div class="arrow">&darr;</div>
+                <div class="new-text">&ldquo;{{ c.later if c.later is string else c.get('later', '') }}&rdquo;</div>
+                {% if c.resolution %}
+                <div class="resolution">{{ c.resolution }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Islands -->
+    {% if islands %}
+    <div class="islands-section">
+        <div class="ornament">&middot; &middot; &middot;</div>
+        <div class="section-title">Knowledge Islands</div>
+        <div class="island-grid">
+            {% for island in islands[:6] %}
+            <div class="island-card">
+                <div class="island-name">{{ island.name }}</div>
+                {% if island.narrative %}
+                <div class="island-narrative">{{ island.narrative[:200] }}{% if island.narrative|length > 200 %}...{% endif %}</div>
+                {% else %}
+                <div class="island-narrative">{{ island.description }}</div>
+                {% endif %}
+                <div class="island-bar"><div class="island-bar-fill" style="width: {{ (island.strength * 100)|int }}%;"></div></div>
+                <div class="island-pct">{{ (island.strength * 100)|int }}% &middot; {{ island.core_memory_ids|length }} core memories</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Retired Patterns -->
+    {% if consolidation.retired_patterns %}
+    <div class="retired-section">
+        <div class="ornament">&middot; &middot; &middot;</div>
+        <div class="section-title">Retired Observations</div>
+        {% for retired in consolidation.retired_patterns %}
+        <div class="retired-item">{{ retired }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div><!-- /manuscript -->
+
+{% else %}
+<!-- No consolidation yet -->
+<div class="manuscript">
+    <div class="empty-autodream">
+        <div style="font-family: 'EB Garamond', serif; font-size: 2rem; color: #d5cfc3; margin-bottom: 1rem;">~</div>
+        <h2 style="font-family: 'EB Garamond', serif; font-size: 1.3rem; color: #6a5e4a; font-style: italic; margin-bottom: 0.75rem;">No reflection yet</h2>
+        <p style="font-family: 'EB Garamond', serif; font-size: 0.95rem; color: var(--secondary); max-width: 400px; margin: 0 auto 2rem; line-height: 1.6;">
+            Reflection runs every two weeks, compacting daily entries into patterns, resolving contradictions, and rewriting islands. You need at least 7 entries.
+        </p>
+        <p style="font-family: 'DM Sans', sans-serif; font-size: 0.8rem; color: var(--secondary);">
+            {{ stats.total_entries }} entries available
+        </p>
+        <button onclick="runConsolidation()" id="consolidate-btn-empty" class="header-btn" style="margin-top: 1rem; font-size: 0.9rem; padding: 0.5rem 1.2rem;">
+            Run Reflection now
+        </button>
+    </div>
+</div>
+{% endif %}
+</div><!-- /autodream-page -->
+
+<script>
+    async function runConsolidation() {
+        const btn = document.getElementById('consolidate-btn') || document.getElementById('consolidate-btn-empty');
+        btn.disabled = true;
+        btn.textContent = 'Consolidating...';
+        try {
+            const res = await fetch('/api/journal/consolidate', { method: 'POST' });
+            const data = await res.json();
+            if (data.ok) {
+                window.location.href = '/journal?view=autodream';
+            } else {
+                btn.textContent = 'Run Reflection';
+                btn.disabled = false;
+                alert(data.error || 'Consolidation failed');
+            }
+        } catch (e) {
+            btn.textContent = 'Run Reflection';
+            btn.disabled = false;
+        }
+    }
+</script>
+{% endblock %}

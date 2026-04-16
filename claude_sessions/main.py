@@ -314,7 +314,7 @@ async def timeline(request: Request, view: str = "topics"):
 
 
 @app.get("/sessions", response_class=HTMLResponse)
-async def sessions_list(request: Request, page: int = 1, q: str = "", mode: str = "sessions"):
+async def sessions_list(request: Request, page: int = 1, q: str = "", mode: str = "sessions", sort: str = "relevance"):
     """Session list page with FTS search. Includes archived sessions.
 
     mode=sessions (default): session-level results
@@ -347,6 +347,10 @@ async def sessions_list(request: Request, page: int = 1, q: str = "", mode: str 
                 # Fallback to FTS-only if semantic index not built yet
                 message_results = fts_results
                 message_results.sort(key=lambda r: -r.get("match_score", 0))
+
+            # Apply sort order
+            if sort == "recent":
+                message_results.sort(key=lambda r: r.get("timestamp", ""), reverse=True)
 
         # Always get session-level results too
         # Use NL preprocessing for better results
@@ -442,6 +446,7 @@ async def sessions_list(request: Request, page: int = 1, q: str = "", mode: str 
             "message_total": len(message_results) if mode == "messages" else 0,
             "semantic_stats": sem_stats,
             "has_semantic": has_semantic,
+            "sort": sort,
         },
     )
 
@@ -1144,51 +1149,6 @@ async def update_decision_status(decision_id: int, request: Request):
     return JSONResponse({"ok": ok})
 
 
-# ===== Palace Page =====
-
-
-@app.get("/palace", response_class=HTMLResponse)
-async def palace_page(request: Request):
-    """Memory Palace — visual interface for MemPalace."""
-    from .data.palace import get_full_palace_view
-    palace = get_full_palace_view()
-    return templates.TemplateResponse(
-        "palace.html",
-        {"request": request, "palace": palace},
-    )
-
-
-@app.get("/api/palace/search")
-async def palace_search(q: str = ""):
-    """Search the memory palace."""
-    if not q:
-        return JSONResponse({"results": [], "query": ""})
-    from .data.palace import search_palace
-    results = search_palace(q, limit=15)
-    return JSONResponse({"results": results, "query": q})
-
-
-@app.post("/api/palace/curate")
-async def palace_curate():
-    """Run palace curation — mine new sessions. Runs async to avoid blocking."""
-    import subprocess
-    import threading
-
-    def _run_mine():
-        try:
-            subprocess.run(
-                ["python3", "-m", "mempalace.cli", "mine",
-                 str(Path.home() / ".claude" / "projects"), "--mode", "convos"],
-                capture_output=True, text=True, timeout=300,
-            )
-        except Exception:
-            pass
-
-    # Run in background thread so the API returns immediately
-    threading.Thread(target=_run_mine, daemon=True).start()
-    return JSONResponse({"ok": True, "message": "Curation started — mining in background. Refresh in a minute."})
-
-
 # ===== Memory Page =====
 
 
@@ -1289,6 +1249,208 @@ async def get_session_outcome(session_id: str):
     if not outcome:
         return JSONResponse({"rated": False})
     return JSONResponse({"rated": True, **outcome})
+
+
+# ===== Marginalia (Journal + Reflection) =====
+
+
+@app.get("/journal", response_class=HTMLResponse)
+async def journal_page(request: Request, date: str = "", view: str = "journal"):
+    """Inner Life — Claude's journal, memory orbs, islands, and autoDream consolidation."""
+    from .data.journal import (
+        get_journal_entries, get_journal_entry, get_memory_orbs,
+        get_islands, get_journal_stats, get_consolidations,
+    )
+
+    stats = get_journal_stats()
+    entries = get_journal_entries(limit=30)
+    islands = get_islands(include_fading=True)
+    all_orbs = get_memory_orbs(limit=100)
+    core_orbs = get_memory_orbs(limit=50, core_only=True)
+
+    # Selected entry
+    selected_entry = None
+    selected_orbs = []
+    if date:
+        selected_entry = get_journal_entry(date)
+        selected_orbs = get_memory_orbs(date=date)
+    elif entries:
+        selected_entry = entries[0]
+        selected_orbs = get_memory_orbs(date=entries[0]["date"])
+
+    # Consolidation data for autoDream view
+    consolidation = None
+    if view == "autodream":
+        consolidations = get_consolidations(limit=1)
+        if consolidations:
+            consolidation = consolidations[0]
+
+    template = "journal.html" if view == "journal" else "journal_autodream.html"
+
+    return templates.TemplateResponse(
+        template,
+        {
+            "request": request,
+            "view": view,
+            "stats": stats,
+            "entries": entries,
+            "islands": islands,
+            "all_orbs": all_orbs,
+            "core_orbs": core_orbs,
+            "selected_entry": selected_entry,
+            "selected_orbs": selected_orbs,
+            "selected_date": date or (entries[0]["date"] if entries else ""),
+            "consolidation": consolidation,
+        },
+    )
+
+
+@app.get("/api/journal/entries")
+async def api_journal_entries(limit: int = 30, offset: int = 0):
+    """Get journal entries."""
+    from .data.journal import get_journal_entries
+    entries = get_journal_entries(limit=limit, offset=offset)
+    return JSONResponse({"entries": entries, "total": len(entries)})
+
+
+@app.get("/api/journal/entry/{date}")
+async def api_journal_entry(date: str):
+    """Get a single journal entry by date."""
+    from .data.journal import get_journal_entry, get_memory_orbs
+    entry = get_journal_entry(date)
+    if not entry:
+        return JSONResponse({"error": "No entry for this date"}, status_code=404)
+    orbs = get_memory_orbs(date=date)
+    return JSONResponse({"entry": entry, "orbs": orbs})
+
+
+@app.get("/api/journal/orbs")
+async def api_journal_orbs(core_only: bool = False, limit: int = 50):
+    """Get memory orbs."""
+    from .data.journal import get_memory_orbs
+    orbs = get_memory_orbs(limit=limit, core_only=core_only)
+    return JSONResponse({"orbs": orbs, "total": len(orbs)})
+
+
+@app.get("/api/journal/islands")
+async def api_journal_islands():
+    """Get all islands."""
+    from .data.journal import get_islands
+    islands = get_islands(include_fading=True)
+    return JSONResponse({"islands": islands})
+
+
+@app.get("/api/journal/stats")
+async def api_journal_stats():
+    """Get journal statistics."""
+    from .data.journal import get_journal_stats
+    return JSONResponse(get_journal_stats())
+
+
+@app.post("/api/journal/generate")
+async def api_journal_generate(request: Request):
+    """Manually trigger journal generation for a date (non-streaming fallback)."""
+    from .services.journal_writer import generate_journal_entry
+    body = await request.json()
+    date = body.get("date", "")
+    if not date:
+        from datetime import datetime, timezone
+        date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    try:
+        result = generate_journal_entry(date, parser)
+        if result:
+            return JSONResponse({"ok": True, "date": date})
+        return JSONResponse({"ok": False, "error": "No sessions found for this date"})
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.get("/api/journal/generate-stream")
+async def api_journal_generate_stream(date: str = ""):
+    """SSE endpoint — streams progress events during journal generation."""
+    from .services.journal_writer import generate_journal_entry
+    from starlette.responses import StreamingResponse
+    import asyncio
+    import queue
+    import threading
+
+    if not date:
+        date = datetime.now().strftime("%Y-%m-%d")
+
+    progress_queue = queue.Queue()
+
+    def on_progress(step, detail):
+        progress_queue.put({"step": step, "detail": detail})
+
+    def _run():
+        try:
+            generate_journal_entry(date, parser, on_progress=on_progress)
+        except Exception as e:
+            progress_queue.put({"step": "error", "detail": str(e)})
+
+    async def event_stream():
+        thread = threading.Thread(target=_run, daemon=True)
+        thread.start()
+
+        finished = False
+        while not finished:
+            # Drain all available events
+            events_sent = False
+            while True:
+                try:
+                    event = progress_queue.get_nowait()
+                    yield f"data: {json.dumps(event)}\n\n"
+                    events_sent = True
+                    if event["step"] in ("done", "error"):
+                        finished = True
+                        break
+                except queue.Empty:
+                    break
+
+            if not finished:
+                if not thread.is_alive():
+                    # Thread died without sending done/error
+                    yield f"data: {json.dumps({'step': 'error', 'detail': 'Generation process ended unexpectedly'})}\n\n"
+                    break
+                # Keepalive every 2s during the long reflection step
+                yield f": keepalive\n\n"
+                await asyncio.sleep(2)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
+
+
+@app.post("/api/journal/consolidate")
+async def api_journal_consolidate(request: Request):
+    """Manually trigger autoDream consolidation."""
+    from .services.journal_writer import run_consolidation
+    body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+    days = body.get("days", 30)
+    try:
+        result = run_consolidation(days=days)
+        if result:
+            return JSONResponse({"ok": True})
+        return JSONResponse({"ok": False, "error": "Not enough entries to consolidate (need at least 3)"})
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/journal/weekly-review")
+async def api_weekly_review():
+    """Manually trigger the weekly review."""
+    from .services.journal_writer import run_weekly_review
+    try:
+        result = run_weekly_review(parser)
+        return JSONResponse({"ok": True, "result": result})
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 
 if __name__ == "__main__":

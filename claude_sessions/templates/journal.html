@@ -1,0 +1,703 @@
+{% extends "base.html" %}
+{% block title %}Marginalia{% endblock %}
+
+{% block content %}
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+
+<style>
+    /* --- The Book --- */
+    .book-wrapper {
+        perspective: 2000px;
+        display: flex;
+        justify-content: center;
+        padding: 2rem 0;
+    }
+
+    .book {
+        position: relative;
+        width: 1100px;
+        min-height: 620px;
+        display: flex;
+        background: none;
+    }
+
+    /* Pages */
+    .page {
+        width: 550px;
+        min-height: 620px;
+        padding: 3rem 3rem;
+        position: relative;
+        box-sizing: border-box;
+    }
+
+    .page-left {
+        background: linear-gradient(135deg, #f5f0e6 0%, #ede7d9 40%, #e8e0d0 100%);
+        border-radius: 4px 0 0 4px;
+        box-shadow: inset -8px 0 16px -8px rgba(0,0,0,0.08), -4px 4px 20px rgba(0,0,0,0.15);
+        border-right: 1px solid #d5cfc3;
+    }
+
+    .page-right {
+        background: linear-gradient(225deg, #f5f0e6 0%, #ede7d9 40%, #e8e0d0 100%);
+        border-radius: 0 4px 4px 0;
+        box-shadow: inset 8px 0 16px -8px rgba(0,0,0,0.05), 4px 4px 20px rgba(0,0,0,0.15);
+        border-left: none;
+    }
+
+    /* Paper texture overlay */
+    .page::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+        pointer-events: none;
+        border-radius: inherit;
+    }
+
+    /* Spine shadow */
+    .page-left::after {
+        content: '';
+        position: absolute;
+        right: -1px;
+        top: 0;
+        bottom: 0;
+        width: 20px;
+        background: linear-gradient(to left, rgba(0,0,0,0.06), transparent);
+        pointer-events: none;
+    }
+
+    .page-right::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 20px;
+        background: linear-gradient(to right, rgba(0,0,0,0.04), transparent);
+        pointer-events: none;
+    }
+
+    /* Journal text — clean and readable */
+    .journal-handwriting {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 1.05rem;
+        line-height: 1.8;
+        color: #3a3428;
+        font-weight: 400;
+    }
+
+    .journal-handwriting p {
+        margin-bottom: 0.9em;
+        text-indent: 0;
+    }
+
+    /* Date header on left page */
+    .journal-date {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 0.85rem;
+        color: #9a8e7a;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(180, 170, 155, 0.3);
+    }
+
+    .journal-tone {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 1rem;
+        color: #b0a490;
+        font-style: italic;
+        float: right;
+    }
+
+    /* Memory orb rows — each orb is a labeled row, not a floating dot */
+    .orb-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.65rem 0;
+        border-bottom: 1px dashed rgba(180, 170, 155, 0.2);
+        cursor: pointer;
+        transition: background 0.2s;
+        border-radius: 4px;
+        padding-left: 0.25rem;
+    }
+
+    .orb-row:hover { background: rgba(200, 190, 170, 0.15); }
+    .orb-row:last-child { border-bottom: none; }
+
+    .orb {
+        border-radius: 50%;
+        flex-shrink: 0;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        animation: orbGlow 4s ease-in-out infinite;
+    }
+
+    .orb-row:hover .orb { transform: scale(1.2); }
+
+    @keyframes orbGlow {
+        0%, 100% { filter: brightness(1); }
+        50% { filter: brightness(1.15); }
+    }
+
+    /* Emotion colors */
+    .orb-clarity      { --orb-color: #e8d5a3; --orb-glow: rgba(232, 213, 163, 0.3); --orb-glow-outer: rgba(232, 213, 163, 0.1); background: radial-gradient(circle at 35% 35%, #f0e2b8, #c9a84c); }
+    .orb-frustration   { --orb-color: #d45a5a; --orb-glow: rgba(212, 90, 90, 0.3); --orb-glow-outer: rgba(212, 90, 90, 0.1); background: radial-gradient(circle at 35% 35%, #e87070, #a83535); }
+    .orb-momentum      { --orb-color: #5ad4a8; --orb-glow: rgba(90, 212, 168, 0.3); --orb-glow-outer: rgba(90, 212, 168, 0.1); background: radial-gradient(circle at 35% 35%, #70e8b8, #35a878); }
+    .orb-doubt         { --orb-color: #8a7ad4; --orb-glow: rgba(138, 122, 212, 0.3); --orb-glow-outer: rgba(138, 122, 212, 0.1); background: radial-gradient(circle at 35% 35%, #a090e8, #6050a8); }
+    .orb-playfulness   { --orb-color: #d4a85a; --orb-glow: rgba(212, 168, 90, 0.3); --orb-glow-outer: rgba(212, 168, 90, 0.1); background: radial-gradient(circle at 35% 35%, #e8c070, #a88035); }
+    .orb-avoidance     { --orb-color: #7a7a7a; --orb-glow: rgba(122, 122, 122, 0.2); --orb-glow-outer: rgba(122, 122, 122, 0.08); background: radial-gradient(circle at 35% 35%, #999, #555); }
+    .orb-breakthrough  { --orb-color: #5ad4d4; --orb-glow: rgba(90, 212, 212, 0.4); --orb-glow-outer: rgba(90, 212, 212, 0.15); background: radial-gradient(circle at 35% 35%, #70e8e8, #35a8a8); }
+    .orb-tension       { --orb-color: #d45a8a; --orb-glow: rgba(212, 90, 138, 0.3); --orb-glow-outer: rgba(212, 90, 138, 0.1); background: radial-gradient(circle at 35% 35%, #e870a0, #a83560); }
+    .orb-pride         { --orb-color: #d4c45a; --orb-glow: rgba(212, 196, 90, 0.3); --orb-glow-outer: rgba(212, 196, 90, 0.1); background: radial-gradient(circle at 35% 35%, #e8d870, #a89835); }
+    .orb-vulnerability { --orb-color: #a87ad4; --orb-glow: rgba(168, 122, 212, 0.3); --orb-glow-outer: rgba(168, 122, 212, 0.1); background: radial-gradient(circle at 35% 35%, #c090e8, #8050a8); }
+    .orb-focus         { --orb-color: #5a8ad4; --orb-glow: rgba(90, 138, 212, 0.3); --orb-glow-outer: rgba(90, 138, 212, 0.1); background: radial-gradient(circle at 35% 35%, #70a0e8, #3560a8); }
+    .orb-scattered     { --orb-color: #a89070; --orb-glow: rgba(168, 144, 112, 0.2); --orb-glow-outer: rgba(168, 144, 112, 0.08); background: radial-gradient(circle at 35% 35%, #c0a888, #887050); }
+
+    .orb.core { box-shadow: 0 0 16px 4px var(--orb-glow), 0 0 32px 8px var(--orb-glow-outer); }
+    .orb.regular { box-shadow: 0 0 8px 2px var(--orb-glow); opacity: 0.8; }
+
+    .orb-text {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 1.1rem;
+        line-height: 1.5;
+        color: #5a5040;
+    }
+
+    .orb-meta {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 0.72rem;
+        color: #a09480;
+        font-style: italic;
+        margin-top: 0.15rem;
+    }
+
+    .core-badge {
+        display: inline-block;
+        font-family: 'EB Garamond', serif;
+        font-size: 0.65rem;
+        color: #a07840;
+        background: rgba(160, 120, 64, 0.1);
+        border: 1px solid rgba(160, 120, 64, 0.2);
+        padding: 0.1rem 0.4rem;
+        border-radius: 3px;
+        margin-left: 0.4rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    /* Page navigation */
+    .page-nav {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .page-nav-btn {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 0.85rem;
+        color: #9a8e7a;
+        padding: 0.4rem 0.8rem;
+        border: 1px solid #d5cfc3;
+        border-radius: 4px;
+        background: #f0ebe0;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .page-nav-btn:hover { background: #e8e0d0; color: #6a5e4a; }
+    .page-nav-btn.active { background: #e0d8c8; color: #4a4030; border-color: #b5ac9a; }
+    .page-nav-btn:disabled { opacity: 0.4; cursor: default; }
+
+    /* Page flip animation */
+    .page-flip-enter {
+        animation: pageFlipIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes pageFlipIn {
+        from { opacity: 0; transform: rotateY(-8deg); }
+        to { opacity: 1; transform: rotateY(0); }
+    }
+
+    /* Island card on paper */
+    .island-card {
+        background: rgba(220, 215, 200, 0.5);
+        border: 1px solid rgba(180, 170, 155, 0.3);
+        border-radius: 6px;
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .island-name {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: #4a4030;
+    }
+
+    .island-desc {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 0.85rem;
+        color: #7a6e5a;
+        font-style: italic;
+        line-height: 1.5;
+    }
+
+    /* Expanded orb overlay */
+    .orb-expanded {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(245, 240, 230, 0.92);
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+        backdrop-filter: blur(6px);
+    }
+
+    .orb-expanded.visible { opacity: 1; pointer-events: auto; }
+
+    .orb-expanded-content {
+        max-width: 440px;
+        padding: 2.5rem;
+        text-align: center;
+        transform: scale(0.9);
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .orb-expanded.visible .orb-expanded-content { transform: scale(1); }
+
+    /* Empty state */
+    .empty-book {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 500px;
+        background: linear-gradient(135deg, #f5f0e6, #ede7d9);
+        border-radius: 4px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+
+    /* Progress panel */
+    .progress-panel {
+        position: fixed;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%) translateY(120%);
+        width: 400px;
+        background: #f5f0e6;
+        border: 1px solid #d5cfc3;
+        border-radius: 8px;
+        padding: 1.25rem;
+        z-index: 40;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .progress-panel.visible { transform: translateX(-50%) translateY(0); }
+
+    .progress-step {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        padding: 0.3rem 0;
+        opacity: 0.3;
+        transition: opacity 0.3s ease;
+    }
+
+    .progress-step.active { opacity: 1; }
+    .progress-step.done { opacity: 0.55; }
+    .progress-step.error { opacity: 1; }
+
+    .step-icon {
+        width: 14px; height: 14px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        margin-top: 3px;
+        border: 1.5px solid #b5ac9a;
+        transition: all 0.3s ease;
+    }
+
+    .progress-step.active .step-icon {
+        border-color: #a07840;
+        background: rgba(160, 120, 64, 0.15);
+        animation: stepPulse 1.5s ease-in-out infinite;
+    }
+
+    .progress-step.done .step-icon { border-color: #6a8a5a; background: rgba(106, 138, 90, 0.15); }
+    .progress-step.error .step-icon { border-color: #c45a4a; background: rgba(196, 90, 74, 0.12); }
+
+    @keyframes stepPulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(160, 120, 64, 0.25); }
+        50% { box-shadow: 0 0 0 5px rgba(160, 120, 64, 0); }
+    }
+
+    .step-label { font-family: 'EB Garamond', serif; font-size: 0.85rem; color: #5a5040; }
+    .step-detail { font-family: 'EB Garamond', serif; font-size: 0.78rem; color: #9a8e7a; margin-top: 0.1rem; }
+    .progress-step.active .step-detail { color: #6a5e4a; }
+
+    /* Header bar */
+    .book-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 0 0.5rem;
+    }
+
+    .book-title {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 1.1rem;
+        color: #7a6e5a;
+        font-style: italic;
+    }
+
+    .book-stats {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 0.8rem;
+        color: #a09480;
+    }
+
+    .header-btn {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 0.8rem;
+        color: #9a8e7a;
+        padding: 0.3rem 0.7rem;
+        border: 1px solid #d5cfc3;
+        border-radius: 4px;
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .header-btn:hover { background: rgba(180, 170, 155, 0.15); color: #6a5e4a; }
+</style>
+
+{% if not entries %}
+<!-- Empty state -->
+<div class="book-wrapper">
+    <div class="empty-book" style="width: 600px;">
+        <div style="font-family: 'EB Garamond', Georgia, serif; font-size: 2.5rem; color: #b5ac9a; margin-bottom: 1rem;">~</div>
+        <h2 style="font-family: 'EB Garamond', serif; font-size: 1.4rem; color: #6a5e4a; margin-bottom: 0.75rem; font-style: italic;">The pages are blank</h2>
+        <p style="font-family: 'EB Garamond', serif; font-size: 0.95rem; color: #9a8e7a; max-width: 360px; line-height: 1.6; margin-bottom: 2rem;">
+            Claude's journal begins when the first reflection is written &mdash; automatically each night at 3 AM, or right now.
+        </p>
+        <button onclick="generateJournal()" id="generate-btn"
+                class="header-btn" style="font-size: 0.9rem; padding: 0.5rem 1.2rem;">
+            Write first entry
+        </button>
+        <p style="font-family: 'EB Garamond', serif; font-size: 0.8rem; color: #b5ac9a; margin-top: 0.75rem;" id="generate-status"></p>
+    </div>
+</div>
+
+{% else %}
+<!-- Header -->
+<div class="book-header">
+    <div style="display: flex; align-items: center; gap: 1.5rem;">
+        <a href="/journal?view=journal" class="book-title" style="text-decoration: none; {{ 'color: #4a4030;' if view == 'journal' else 'color: #b5ac9a;' }}">Journal</a>
+        <span style="color: #d5cfc3;">|</span>
+        <a href="/journal?view=autodream" class="book-title" style="text-decoration: none; {{ 'color: #4a4030;' if view == 'autodream' else 'color: #b5ac9a;' }}">Reflection</a>
+    </div>
+    <div class="book-stats">
+        {{ stats.total_entries }} entries &middot; {{ stats.total_orbs }} memories &middot; {{ stats.total_islands }} island{{ 's' if stats.total_islands != 1 else '' }}
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <button onclick="generateJournal()" id="generate-btn" class="header-btn">Write today</button>
+        <button onclick="runWeeklyReview()" id="review-btn" class="header-btn">Weekly review</button>
+    </div>
+</div>
+
+<!-- The Book -->
+<div class="book-wrapper">
+    <div class="book" id="journal-book">
+
+        <!-- Left Page: Journal Entry -->
+        <div class="page page-left ruled-lines page-flip-enter" id="page-left">
+            {% if selected_entry %}
+            <div class="journal-date">
+                {{ selected_entry.date }}
+                <span class="journal-tone">{{ selected_entry.emotional_tone }}</span>
+            </div>
+            <div class="journal-handwriting">
+                {{ selected_entry.content | replace('\n\n', '</p><p>') | replace('\n', '<br>') | safe }}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Page: Memory Orbs + Islands -->
+        <div class="page page-right page-flip-enter" id="page-right" style="animation-delay: 0.1s;">
+            {% if selected_orbs or all_orbs %}
+
+            <!-- Section: Memories from this day -->
+            {% if selected_orbs %}
+            <div class="journal-date">
+                Memories &mdash; {{ selected_entry.date if selected_entry else '' }}
+            </div>
+
+            {% for orb in selected_orbs %}
+            <div class="orb-row"
+                 data-orb-id="{{ orb.id }}"
+                 data-content="{{ orb.content | e }}"
+                 data-emotion="{{ orb.emotion }}"
+                 data-date="{{ orb.date }}"
+                 data-is-core="{{ orb.is_core | lower }}"
+                 onclick="expandOrb(this)">
+                <div class="orb {{ 'core' if orb.is_core else 'regular' }} orb-{{ orb.emotion }}"
+                     style="width: 28px; height: 28px; margin-top: 2px;"></div>
+                <div>
+                    <div class="orb-text">{{ orb.content }}</div>
+                    <div class="orb-meta">
+                        {{ orb.emotion }}
+                        {% if orb.is_core %}<span class="core-badge">core memory</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Section: All recent orbs (if more than today's) -->
+            {% set other_orbs = [] %}
+            {% for orb in all_orbs[:15] %}
+                {% if orb.date != selected_date %}
+                    {% if other_orbs.append(orb) %}{% endif %}
+                {% endif %}
+            {% endfor %}
+
+            {% if other_orbs %}
+            <div style="margin-top: 1.75rem;">
+                <div style="font-family: 'EB Garamond', serif; font-size: 0.72rem; color: #a09480; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                    Recent memories
+                </div>
+                {% for orb in other_orbs[:6] %}
+                <div class="orb-row"
+                     data-orb-id="{{ orb.id }}"
+                     data-content="{{ orb.content | e }}"
+                     data-emotion="{{ orb.emotion }}"
+                     data-date="{{ orb.date }}"
+                     data-is-core="{{ orb.is_core | lower }}"
+                     onclick="expandOrb(this)">
+                    <div class="orb {{ 'core' if orb.is_core else 'regular' }} orb-{{ orb.emotion }}"
+                         style="width: 22px; height: 22px; margin-top: 2px;"></div>
+                    <div>
+                        <div class="orb-text" style="font-size: 1rem;">{{ orb.content[:80] }}{% if orb.content|length > 80 %}...{% endif %}</div>
+                        <div class="orb-meta">{{ orb.date }} &middot; {{ orb.emotion }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Section: Islands -->
+            {% if islands %}
+            <div style="margin-top: 1.75rem;">
+                <div style="font-family: 'EB Garamond', serif; font-size: 0.72rem; color: #a09480; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                    Islands of personality
+                </div>
+                {% for island in islands %}
+                <div class="island-card {{ 'opacity-50' if island.status == 'fading' else '' }}">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div class="island-name">{{ island.name }}</div>
+                        {% if island.status == 'fading' %}
+                        <span style="font-family: 'EB Garamond', serif; font-size: 0.65rem; color: #b5ac9a; font-style: italic;">fading</span>
+                        {% endif %}
+                    </div>
+                    <div class="island-desc">{{ island.description }}</div>
+                    <div style="margin-top: 0.4rem; height: 3px; background: #ddd8cc; border-radius: 2px; overflow: hidden;">
+                        <div style="height: 100%; width: {{ (island.strength * 100)|int }}%; background: linear-gradient(90deg, #a07840, #c9a84c); border-radius: 2px;"></div>
+                    </div>
+                    <div style="font-family: 'EB Garamond', serif; font-size: 0.68rem; color: #b5ac9a; margin-top: 0.25rem;">
+                        {{ island.core_memory_ids | length }} core memories &middot; strength {{ (island.strength * 100)|int }}%
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div style="font-family: 'EB Garamond', Georgia, serif; font-size: 1.2rem; color: #b5ac9a; text-align: center; padding-top: 4rem;">
+                No memories captured yet.
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+<!-- Page navigator -->
+<div class="page-nav" id="page-nav">
+    {% for entry in entries %}
+    <a href="/journal?date={{ entry.date }}"
+       class="page-nav-btn {{ 'active' if entry.date == selected_date else '' }}"
+       title="{{ entry.date }} &middot; {{ entry.emotional_tone }}">
+        {{ entry.date[5:] }}
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Expanded Orb Overlay -->
+<div class="orb-expanded" id="orb-overlay" onclick="closeOrb(event)">
+    <div class="orb-expanded-content" onclick="event.stopPropagation()">
+        <div class="w-16 h-16 rounded-full mx-auto mb-6" id="expanded-orb-visual"></div>
+        <p style="font-family: 'EB Garamond', Georgia, serif; font-size: 1.4rem; line-height: 1.6; color: #4a4030; margin-bottom: 1rem;" id="expanded-orb-content"></p>
+        <div style="font-family: 'EB Garamond', serif; font-size: 0.85rem; color: #9a8e7a; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+            <span id="expanded-orb-emotion"></span>
+            <span>&middot;</span>
+            <span id="expanded-orb-date"></span>
+            <span id="expanded-orb-core" class="hidden">&middot; core memory</span>
+        </div>
+    </div>
+</div>
+
+<!-- Progress Panel -->
+<div class="progress-panel" id="progress-panel">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+        <span style="font-family: 'EB Garamond', serif; font-size: 0.9rem; color: #5a5040;" id="progress-title">Writing journal entry</span>
+        <span style="font-family: 'EB Garamond', serif; font-size: 0.75rem; color: #a09480;" id="progress-elapsed"></span>
+    </div>
+    <div id="progress-steps">
+        <div class="progress-step" id="ps-checking">
+            <div class="step-icon"></div>
+            <div><div class="step-label">Checking for existing entry</div><div class="step-detail" data-detail="checking"></div></div>
+        </div>
+        <div class="progress-step" id="ps-gathering">
+            <div class="step-icon"></div>
+            <div><div class="step-label">Gathering today's sessions</div><div class="step-detail" data-detail="gathering"></div></div>
+        </div>
+        <div class="progress-step" id="ps-building">
+            <div class="step-icon"></div>
+            <div><div class="step-label">Building session digest</div><div class="step-detail" data-detail="building"></div></div>
+        </div>
+        <div class="progress-step" id="ps-reflecting">
+            <div class="step-icon"></div>
+            <div><div class="step-label">Claude is reflecting</div><div class="step-detail" data-detail="reflecting">This takes a moment</div></div>
+        </div>
+        <div class="progress-step" id="ps-parsing">
+            <div class="step-icon"></div>
+            <div><div class="step-label">Reading the reflection</div><div class="step-detail" data-detail="parsing"></div></div>
+        </div>
+        <div class="progress-step" id="ps-saving">
+            <div class="step-icon"></div>
+            <div><div class="step-label">Saving entry & memory orbs</div><div class="step-detail" data-detail="saving"></div></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Expand orb
+    function expandOrb(el) {
+        const overlay = document.getElementById('orb-overlay');
+        document.getElementById('expanded-orb-visual').className = 'w-16 h-16 rounded-full mx-auto mb-6 orb-' + el.dataset.emotion;
+        document.getElementById('expanded-orb-visual').style.boxShadow = '0 0 24px 8px var(--orb-glow), 0 0 48px 16px var(--orb-glow-outer)';
+        document.getElementById('expanded-orb-content').textContent = el.dataset.content;
+        document.getElementById('expanded-orb-emotion').textContent = el.dataset.emotion;
+        document.getElementById('expanded-orb-date').textContent = el.dataset.date;
+        document.getElementById('expanded-orb-core').classList.toggle('hidden', el.dataset.isCore !== 'true');
+        overlay.classList.add('visible');
+    }
+
+    function expandOrbById(id) {
+        const el = document.querySelector(`[data-orb-id="${id}"]`);
+        if (el) expandOrb(el);
+    }
+
+    function closeOrb(e) { document.getElementById('orb-overlay').classList.remove('visible'); }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeOrb(); });
+
+    // Keyboard page flip
+    document.addEventListener('keydown', e => {
+        const btns = [...document.querySelectorAll('.page-nav-btn')];
+        const activeIdx = btns.findIndex(b => b.classList.contains('active'));
+        if (e.key === 'ArrowLeft' && activeIdx > 0) btns[activeIdx - 1].click();
+        if (e.key === 'ArrowRight' && activeIdx < btns.length - 1) btns[activeIdx + 1].click();
+    });
+
+    // Generate journal entry with SSE progress
+    function generateJournal() {
+        const btn = document.getElementById('generate-btn');
+        const panel = document.getElementById('progress-panel');
+        const elapsedEl = document.getElementById('progress-elapsed');
+        const titleEl = document.getElementById('progress-title');
+
+        btn.disabled = true;
+        btn.textContent = 'Writing...';
+        panel.classList.add('visible');
+
+        document.querySelectorAll('.progress-step').forEach(s => {
+            s.className = 'progress-step';
+            const d = s.querySelector('.step-detail');
+            if (d && !d.textContent.includes('takes a moment')) d.textContent = '';
+        });
+
+        const startTime = Date.now();
+        const timer = setInterval(() => {
+            elapsedEl.textContent = Math.floor((Date.now() - startTime) / 1000) + 's';
+        }, 1000);
+
+        let currentStep = null;
+        const date = new Date().toISOString().split('T')[0];
+        const source = new EventSource(`/api/journal/generate-stream?date=${date}`);
+
+        source.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            const { step, detail } = data;
+
+            if (currentStep && currentStep !== step) {
+                const prev = document.getElementById('ps-' + currentStep);
+                if (prev) prev.className = 'progress-step done';
+            }
+
+            if (step === 'done') {
+                if (currentStep) {
+                    const prev = document.getElementById('ps-' + currentStep);
+                    if (prev) prev.className = 'progress-step done';
+                }
+                clearInterval(timer);
+                titleEl.textContent = 'Entry written';
+                source.close();
+                setTimeout(() => { window.location.href = '/journal?date=' + date; }, 800);
+                return;
+            }
+
+            if (step === 'error') {
+                clearInterval(timer);
+                if (currentStep) {
+                    const el = document.getElementById('ps-' + currentStep);
+                    if (el) { el.className = 'progress-step error'; el.querySelector('.step-detail').textContent = detail; }
+                }
+                titleEl.textContent = 'Failed';
+                source.close();
+                btn.textContent = 'Try again';
+                btn.disabled = false;
+                return;
+            }
+
+            currentStep = step;
+            const el = document.getElementById('ps-' + step);
+            if (el) { el.className = 'progress-step active'; el.querySelector('.step-detail').textContent = detail; }
+        };
+
+        source.onerror = function() { clearInterval(timer); source.close(); titleEl.textContent = 'Connection lost'; btn.textContent = 'Try again'; btn.disabled = false; };
+    }
+
+    // Weekly review
+    async function runWeeklyReview() {
+        const btn = document.getElementById('review-btn');
+        btn.disabled = true; btn.textContent = 'Reviewing...';
+        try {
+            const res = await fetch('/api/journal/weekly-review', { method: 'POST' });
+            const data = await res.json();
+            if (data.ok) window.location.reload();
+            else { btn.textContent = 'Weekly review'; btn.disabled = false; }
+        } catch { btn.textContent = 'Weekly review'; btn.disabled = false; }
+    }
+</script>
+{% endblock %}

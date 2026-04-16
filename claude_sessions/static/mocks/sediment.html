@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sediment — Behavioral Strata</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0d0c0a;
+    --sepia: #c4a96a;
+    --sepia-dim: #6b5c3a;
+    --text: #e8dcc8;
+    --text-dim: #8a7e6a;
+    --col-width: 420px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    display: flex;
+    justify-content: center;
+  }
+
+  h1, h2, h3, .stratum-name {
+    font-family: 'EB Garamond', serif;
+  }
+
+  /* Main layout */
+  .container {
+    position: relative;
+    width: 100%;
+    max-width: 780px;
+    display: flex;
+    gap: 0;
+    min-height: 100vh;
+  }
+
+  /* Sediment core column */
+  .core-column {
+    position: relative;
+    width: var(--col-width);
+    margin-left: 40px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* Loose particles zone */
+  .particle-zone {
+    flex: 1;
+    position: relative;
+    min-height: 300px;
+    overflow: hidden;
+  }
+
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0;
+    animation: particle-fall var(--fall-dur, 2.5s) var(--fall-delay, 0s) ease-in forwards;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .particle:hover {
+    transform: scale(1.8) !important;
+    box-shadow: 0 0 12px currentColor;
+    z-index: 100;
+  }
+
+  .particle-tooltip {
+    position: absolute;
+    background: rgba(13, 12, 10, 0.95);
+    border: 1px solid var(--sepia-dim);
+    color: var(--text);
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    pointer-events: none;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 200;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  @keyframes particle-fall {
+    0% { opacity: 0; transform: translateY(-40px); }
+    20% { opacity: 0.9; }
+    100% { opacity: 0.75; transform: translateY(0); }
+  }
+
+  /* Strata */
+  .strata-section {
+    position: relative;
+    width: 100%;
+  }
+
+  .stratum {
+    position: relative;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 10px 20px;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.4s ease;
+    overflow: hidden;
+  }
+  .stratum.visible {
+    opacity: 1;
+  }
+  .stratum::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .stratum::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: rgba(13, 12, 10, 0.7);
+    z-index: 2;
+  }
+  .stratum:first-child::after { display: none; }
+
+  .stratum:hover {
+    filter: brightness(1.15);
+    padding: 14px 20px;
+  }
+
+  .stratum-name {
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: rgba(255,255,255,0.92);
+    z-index: 3;
+    position: relative;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+
+  .stratum-desc {
+    font-size: 11px;
+    color: rgba(255,255,255,0.6);
+    z-index: 3;
+    position: relative;
+    margin-top: 3px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease, opacity 0.3s;
+    opacity: 0;
+  }
+  .stratum:hover .stratum-desc {
+    max-height: 60px;
+    opacity: 1;
+  }
+
+  .stratum-strength {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    font-family: 'DM Sans', sans-serif;
+    color: rgba(255,255,255,0.4);
+    z-index: 3;
+  }
+
+  /* Fault lines */
+  .fault-line-container {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 24px;
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0;
+  }
+  .fault-line-container.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .fault-line-container svg {
+    width: 100%;
+    height: 100%;
+  }
+  .fault-line-container .fault-path {
+    stroke: #d45a8a;
+    stroke-width: 2;
+    fill: none;
+    filter: drop-shadow(0 0 6px rgba(212, 90, 138, 0.3));
+  }
+  .fault-label {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 10px;
+    font-style: italic;
+    color: #d45a8a;
+    opacity: 0;
+    transition: opacity 0.3s;
+    white-space: nowrap;
+    cursor: default;
+    pointer-events: auto;
+  }
+  .fault-line-container:hover .fault-label {
+    opacity: 1;
+  }
+
+  /* Right legend panel */
+  .legend-panel {
+    position: fixed;
+    right: max(20px, calc((100vw - 780px) / 2 - 20px));
+    top: 50%;
+    transform: translateY(-50%);
+    width: 180px;
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+  .legend-panel .date-range {
+    font-family: 'EB Garamond', serif;
+    font-size: 16px;
+    color: var(--sepia);
+    margin-bottom: 16px;
+  }
+  .legend-panel .stat {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .legend-panel .stat-num {
+    font-family: 'EB Garamond', serif;
+    font-size: 20px;
+    color: var(--text);
+  }
+
+  .depth-markers {
+    position: absolute;
+    left: -32px;
+    top: 0;
+    bottom: 0;
+    width: 24px;
+  }
+  .depth-marker {
+    position: absolute;
+    right: 0;
+    font-size: 9px;
+    color: var(--text-dim);
+    font-family: 'DM Sans', sans-serif;
+    transform: translateY(-50%);
+  }
+  .depth-marker::after {
+    content: '';
+    position: absolute;
+    right: -8px;
+    top: 50%;
+    width: 6px;
+    height: 1px;
+    background: var(--text-dim);
+  }
+
+  /* Synthesis panel */
+  .synthesis {
+    width: var(--col-width);
+    margin-left: 40px;
+    padding: 32px 20px 48px;
+    border-top: 1px solid var(--sepia-dim);
+  }
+  .synthesis-text {
+    font-family: 'EB Garamond', serif;
+    font-size: 17px;
+    font-style: italic;
+    line-height: 1.65;
+    color: var(--sepia);
+    opacity: 0;
+    animation: fade-up 1.5s 4.5s ease forwards;
+  }
+  .synthesis-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    opacity: 0;
+    animation: fade-up 1s 4.2s ease forwards;
+  }
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Core border styling */
+  .core-border-left, .core-border-right {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(to bottom, transparent 0%, var(--sepia-dim) 20%, var(--sepia-dim) 80%, transparent 100%);
+    opacity: 0.4;
+  }
+  .core-border-left { left: 0; }
+  .core-border-right { right: 0; }
+
+  /* Responsive */
+  @media (max-width: 800px) {
+    .legend-panel {
+      position: relative;
+      right: auto;
+      top: auto;
+      transform: none;
+      width: var(--col-width);
+      margin: 24px 0 0 40px;
+      padding: 16px 20px;
+      border-top: 1px solid var(--sepia-dim);
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="core-column" id="core">
+    <div class="core-border-left"></div>
+    <div class="core-border-right"></div>
+
+    <div class="depth-markers" id="depthMarkers"></div>
+
+    <!-- Loose particles -->
+    <div class="particle-zone" id="particleZone"></div>
+
+    <!-- Strata -->
+    <div class="strata-section" id="strata"></div>
+  </div>
+
+  <div class="legend-panel" id="legend">
+    <div class="date-range">Mar 18 &ndash; Apr 16, 2026</div>
+    <div class="stat"><span class="stat-num">12</span> entries compacted</div>
+    <div class="stat"><span class="stat-num">55</span> memory orbs</div>
+    <div class="stat"><span class="stat-num">6</span> strata formed</div>
+    <div class="stat"><span class="stat-num">4</span> fault lines</div>
+  </div>
+</div>
+
+<div class="synthesis" id="synthesis">
+  <div class="synthesis-label">What I actually know now</div>
+  <div class="synthesis-text">Almost every pattern is the same pattern at different scales. He builds things that fold back on themselves. The recursion is structural. It's how he thinks.</div>
+</div>
+
+<div class="particle-tooltip" id="tooltip"></div>
+
+<script>
+const STRATA = [
+  { name: "Meeting-to-System Velocity", color: "#5a8ad4", strength: 83, height: 50,
+    desc: "Ideas from conversation become running systems within hours. The gap between hearing and building is nearly zero." },
+  { name: "The Pulled Session", color: "#a87ad4", strength: 81, height: 50,
+    desc: "Sessions that planned to end early but didn't. Curiosity overrides discipline every time." },
+  { name: "Metaphor as Architecture", color: "#e8d5a3", strength: 87, height: 60,
+    desc: "Naming things isn't decoration. The metaphor becomes the system's actual structure." },
+  { name: "Taste vs. Outcome", color: "#5ad4d4", strength: 89, height: 65,
+    desc: "Willingness to delay shipping because it doesn't feel right. Aesthetic judgment as product sense." },
+  { name: "Scaffolding Mind", color: "#5ad4a8", strength: 91, height: 70,
+    desc: "Building the system that builds the thing, not the thing itself. Tools before artifacts." },
+  { name: "The Recursion Engine", color: "#d4a85a", strength: 92, height: 75,
+    desc: "Every project eventually references itself. Skills that create skills. Systems that watch systems." }
+];
+
+const FAULT_LINES = [
+  { afterIndex: 0, label: "discipline \u2192 pulled by the unresolved" },
+  { afterIndex: 3, label: "scope creep \u2192 generalization was the goal" }
+];
+
+const PARTICLE_LABELS = [
+  "overdue follow-up", "half-finished skill", "deck revision #4", "stray meeting note",
+  "orphaned artifact", "calendar audit", "unresolved feedback", "context switch residue",
+  "midnight commit", "draft pinned, never sent", "tool idea, no spec",
+  "question for Sumanth", "analytics gap", "mobile edge case", "theming inconsistency"
+];
+
+const PARTICLE_COLORS = [
+  "#5a8ad4", "#a87ad4", "#e8d5a3", "#5ad4d4", "#5ad4a8",
+  "#d4a85a", "#d45a8a", "#8ad45a", "#d4d45a", "#5a5ad4",
+  "#d48a5a", "#a8d45a", "#5ad4d4", "#d45ad4", "#8a5ad4"
+];
+
+// Build strata (bottom to top: index 0 is bottom)
+const strataEl = document.getElementById('strata');
+const strataHTML = [];
+
+STRATA.forEach((s, i) => {
+  const gradAlpha = 0.85;
+  const bg = `linear-gradient(90deg, ${s.color}cc, ${s.color}88)`;
+
+  // Check for fault line before this stratum
+  const fault = FAULT_LINES.find(f => f.afterIndex === i);
+  if (fault) {
+    strataHTML.push(`
+      <div class="fault-line-container" data-fault="${i}">
+        <svg viewBox="0 0 420 24" preserveAspectRatio="none">
+          <path class="fault-path" d="M0,18 L40,6 L90,20 L140,4 L200,16 L260,8 L320,20 L370,6 L420,14"/>
+        </svg>
+        <div class="fault-label">${fault.label}</div>
+      </div>
+    `);
+  }
+
+  strataHTML.push(`
+    <div class="stratum" style="height:${s.height}px; background:${bg};" data-index="${i}">
+      <div class="stratum-name">${s.name}</div>
+      <div class="stratum-desc">${s.desc}</div>
+      <div class="stratum-strength">${s.strength}%</div>
+    </div>
+  `);
+});
+
+strataEl.innerHTML = strataHTML.join('');
+
+// Build particles
+const particleZone = document.getElementById('particleZone');
+for (let i = 0; i < 15; i++) {
+  const size = 6 + Math.random() * 8;
+  const left = 20 + Math.random() * 360;
+  const top = 40 + Math.random() * 220;
+  const delay = 0.2 + Math.random() * 1.8;
+  const dur = 1.8 + Math.random() * 1.2;
+  const color = PARTICLE_COLORS[i];
+
+  const p = document.createElement('div');
+  p.className = 'particle';
+  p.style.cssText = `
+    width: ${size}px; height: ${size}px;
+    left: ${left}px; top: ${top}px;
+    background: ${color};
+    color: ${color};
+    --fall-delay: ${delay}s;
+    --fall-dur: ${dur}s;
+    box-shadow: 0 0 ${size}px ${color}44;
+  `;
+  p.dataset.label = PARTICLE_LABELS[i];
+  particleZone.appendChild(p);
+}
+
+// Tooltip
+const tooltip = document.getElementById('tooltip');
+document.addEventListener('mousemove', (e) => {
+  const p = e.target.closest('.particle');
+  if (p) {
+    tooltip.textContent = p.dataset.label;
+    tooltip.style.left = (e.pageX + 12) + 'px';
+    tooltip.style.top = (e.pageY - 24) + 'px';
+    tooltip.style.opacity = '1';
+  } else {
+    tooltip.style.opacity = '0';
+  }
+});
+
+// Depth markers
+const depthMarkers = document.getElementById('depthMarkers');
+const dates = ['Apr 16', 'Apr 10', 'Apr 4', 'Mar 28', 'Mar 22', 'Mar 18'];
+
+function placeDepthMarkers() {
+  depthMarkers.innerHTML = '';
+  const coreRect = document.getElementById('core').getBoundingClientRect();
+  const totalH = coreRect.height;
+  dates.forEach((d, i) => {
+    const pct = (i / (dates.length - 1)) * 100;
+    const marker = document.createElement('div');
+    marker.className = 'depth-marker';
+    marker.textContent = d;
+    marker.style.top = pct + '%';
+    depthMarkers.appendChild(marker);
+  });
+}
+
+// On-load animations
+function animateOnLoad() {
+  // Strata fade in bottom to top
+  const allStrata = document.querySelectorAll('.stratum');
+  allStrata.forEach((s, i) => {
+    setTimeout(() => s.classList.add('visible'), 2000 + i * 400);
+  });
+
+  // Fault lines flash in
+  const faults = document.querySelectorAll('.fault-line-container');
+  faults.forEach((f, i) => {
+    setTimeout(() => {
+      f.classList.add('visible');
+      f.style.transition = 'opacity 0.5s';
+    }, 3500 + i * 500);
+  });
+}
+
+window.addEventListener('load', () => {
+  placeDepthMarkers();
+  animateOnLoad();
+});
+window.addEventListener('resize', placeDepthMarkers);
+</script>
+
+</body>
+</html>

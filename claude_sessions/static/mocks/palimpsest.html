@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>autoDream — Palimpsest Consolidation</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --paper: #f5f0e6;
+    --text: #3a3428;
+    --secondary: #9a8e7a;
+    --accent: #a07840;
+    --paper-dark: #e8e0d0;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--text);
+    font-family: 'EB Garamond', Georgia, serif;
+    min-height: 100vh;
+    padding: 0;
+    /* Paper texture via layered gradients */
+    background-image:
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 28px,
+        rgba(154, 142, 122, 0.03) 28px,
+        rgba(154, 142, 122, 0.03) 29px
+      ),
+      radial-gradient(ellipse at 20% 50%, rgba(160, 120, 64, 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 30%, rgba(160, 120, 64, 0.03) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(58, 52, 40, 0.02) 0%, transparent 40%);
+  }
+
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 40px 80px;
+    position: relative;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 56px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(154, 142, 122, 0.3);
+  }
+
+  .header h1 {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .header .date-range {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    color: var(--secondary);
+    font-weight: 400;
+    letter-spacing: 0.5px;
+  }
+
+  /* Main layout */
+  .manuscript {
+    display: grid;
+    grid-template-columns: 180px 1fr 80px;
+    gap: 32px;
+    position: relative;
+  }
+
+  /* Left margin — marginalia */
+  .marginalia {
+    padding-top: 20px;
+    position: relative;
+  }
+
+  .margin-note {
+    font-family: 'EB Garamond', serif;
+    font-size: 13px;
+    font-style: italic;
+    color: var(--accent);
+    margin-bottom: 28px;
+    padding: 4px 8px;
+    display: inline-block;
+    position: relative;
+    line-height: 1.4;
+    border-left: 1.5px solid rgba(160, 120, 64, 0.3);
+    padding-left: 10px;
+  }
+
+  .margin-note:nth-child(1) { transform: rotate(-1.5deg); }
+  .margin-note:nth-child(2) { transform: rotate(2deg); margin-left: 8px; }
+  .margin-note:nth-child(3) { transform: rotate(-0.5deg); margin-left: -4px; }
+  .margin-note:nth-child(4) { transform: rotate(1.5deg); margin-left: 12px; }
+  .margin-note:nth-child(5) { transform: rotate(-2deg); }
+  .margin-note:nth-child(6) { transform: rotate(3deg); margin-left: 6px; }
+  .margin-note:nth-child(7) { transform: rotate(-1deg); margin-left: -2px; }
+  .margin-note:nth-child(8) { transform: rotate(2.5deg); margin-left: 10px; }
+
+  /* Center — palimpsest area */
+  .palimpsest-area {
+    position: relative;
+    min-height: 500px;
+  }
+
+  /* Ghost text layers */
+  .ghost-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    opacity: 0.12;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+    font-size: 17px;
+    line-height: 1.75;
+    color: var(--text);
+  }
+
+  .ghost-layer.layer-1 {
+    top: -8px;
+    left: 4px;
+    transform: rotate(-0.3deg);
+    font-size: 16px;
+  }
+
+  .ghost-layer.layer-2 {
+    top: 60px;
+    left: -6px;
+    transform: rotate(0.2deg);
+    font-size: 15.5px;
+    opacity: 0.08;
+  }
+
+  .ghost-layer.layer-3 {
+    top: 140px;
+    left: 8px;
+    transform: rotate(-0.15deg);
+    font-size: 17.5px;
+    opacity: 0.06;
+  }
+
+  /* Primary synthesis text */
+  .synthesis {
+    position: relative;
+    z-index: 2;
+    font-size: 18px;
+    line-height: 1.85;
+    color: var(--text);
+    padding: 12px 0;
+  }
+
+  .synthesis p {
+    margin-bottom: 24px;
+    text-indent: 2em;
+  }
+
+  .synthesis p:first-child {
+    text-indent: 0;
+  }
+
+  .synthesis p:first-child::first-letter {
+    font-size: 3.2em;
+    float: left;
+    line-height: 0.8;
+    margin-right: 8px;
+    margin-top: 6px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Right margin — wax seals */
+  .wax-seals {
+    padding-top: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+  }
+
+  .seal {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .seal-orb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    position: relative;
+  }
+
+  .seal-orb::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: inherit;
+    opacity: 0.3;
+    filter: blur(4px);
+  }
+
+  .seal-date {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 8px;
+    color: var(--secondary);
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+
+  .seal-label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 7px;
+    color: var(--secondary);
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  /* Contradictions */
+  .contradictions {
+    margin-top: 56px;
+    padding-top: 40px;
+    border-top: 1px solid rgba(154, 142, 122, 0.25);
+    grid-column: 1 / -1;
+  }
+
+  .contradictions-title {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+    color: var(--secondary);
+    margin-bottom: 32px;
+    text-align: center;
+  }
+
+  .contradiction-pairs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px 48px;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .contradiction {
+    position: relative;
+    padding: 16px 20px;
+    background: rgba(154, 142, 122, 0.05);
+    border-radius: 4px;
+  }
+
+  .old-text {
+    font-size: 15px;
+    color: var(--secondary);
+    text-decoration: line-through;
+    text-decoration-color: rgba(160, 120, 64, 0.5);
+    text-decoration-thickness: 1.5px;
+    line-height: 1.5;
+    margin-bottom: 8px;
+    font-style: italic;
+  }
+
+  .arrow {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 10px;
+    color: var(--accent);
+    margin-bottom: 4px;
+    opacity: 0.6;
+  }
+
+  .new-text {
+    font-size: 15.5px;
+    color: var(--accent);
+    line-height: 1.5;
+    font-weight: 500;
+  }
+
+  /* Islands */
+  .islands {
+    margin-top: 56px;
+    padding-top: 40px;
+    border-top: 1px solid rgba(154, 142, 122, 0.25);
+    grid-column: 1 / -1;
+  }
+
+  .islands-title {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+    color: var(--secondary);
+    margin-bottom: 28px;
+    text-align: center;
+  }
+
+  .island-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .island {
+    text-align: center;
+    padding: 20px 12px;
+    background: rgba(154, 142, 122, 0.06);
+    border-radius: 6px;
+    border: 1px solid rgba(154, 142, 122, 0.12);
+  }
+
+  .island-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 12px;
+    line-height: 1.3;
+  }
+
+  .island-bar-track {
+    width: 100%;
+    height: 4px;
+    background: rgba(154, 142, 122, 0.15);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+
+  .island-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+
+  .island-pct {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    color: var(--secondary);
+    font-weight: 500;
+  }
+
+  /* Subtle page aging effects */
+  .page::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse at 0% 0%, rgba(160, 120, 64, 0.06) 0%, transparent 40%),
+      radial-gradient(ellipse at 100% 100%, rgba(58, 52, 40, 0.05) 0%, transparent 40%);
+    z-index: 0;
+  }
+
+  .page > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Decorative separator */
+  .ornament {
+    text-align: center;
+    color: var(--secondary);
+    font-size: 16px;
+    letter-spacing: 12px;
+    opacity: 0.4;
+    margin: 40px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <!-- Header -->
+  <div class="header">
+    <h1>autoDream &mdash; Consolidation</h1>
+    <div class="date-range">Mar 18 &ndash; Apr 16, 2026 &middot; 12 entries compacted</div>
+  </div>
+
+  <!-- Main manuscript grid -->
+  <div class="manuscript">
+
+    <!-- Left margin: Marginalia -->
+    <div class="marginalia">
+      <div class="margin-note">The recursion is structural</div>
+      <div class="margin-note">Metaphor before spec</div>
+      <div class="margin-note">Early-morning = unresolved</div>
+      <div class="margin-note">Scope expansion = real goal</div>
+      <div class="margin-note">Taste &ne; outcome</div>
+      <div class="margin-note">Meeting-to-system velocity</div>
+      <div class="margin-note">The pruning reflex</div>
+      <div class="margin-note">Scaffolding for cognition</div>
+    </div>
+
+    <!-- Center: Palimpsest synthesis -->
+    <div class="palimpsest-area">
+      <!-- Ghost layers (old text showing through) -->
+      <div class="ghost-layer layer-1">
+        Session 3 noted a pattern of building coaching tools, but I filed it under "product instinct" without seeing the deeper structure. He kept returning to the idea of systems that teach by doing the thing they teach. I assumed this was iterative refinement. It was something else entirely: a recursive architecture where the tool and its subject are the same object viewed from different angles. The early journal entries focused heavily on shipping velocity, treating each session as evidence of discipline or ambition. I counted hours and output cadence as if they were the signal.
+      </div>
+      <div class="ghost-layer layer-2">
+        The metaphor usage seemed decorative at first glance. Inside Out appeared in session 5 as a framing device for the journal, and I logged it as "creative naming convention" rather than investigating whether the metaphor was doing structural work. Similarly, the Tinder-swipe mechanic in the taste-transfer project looked like a UI decision. I had not yet connected metaphor arrival timing to specification quality. The correlation between early metaphor and clean spec emerged only after cross-referencing sessions 5 through 9.
+      </div>
+      <div class="ghost-layer layer-3">
+        Morning timestamps clustered around 5:00-6:00am in seven of fourteen sessions. First interpretation: this is a morning person who schedules deep work early. The competing signal — two sessions at 2:47am and 3:12am — didn't fit the discipline frame. Discipline doesn't wake you at 2:47am. These weren't planned sessions. Something was pulling, not pushing. The emotional texture of those late-night entries was different: more exploratory, less structured, closer to the thing itself.
+      </div>
+
+      <!-- Synthesis: primary layer -->
+      <div class="synthesis">
+        <p>What I actually know now, having held all fourteen days at once: almost every pattern I could name is the same pattern at different scales. He builds things that fold back on themselves &mdash; a coaching tool that teaches eval-writing by evaluating your ability to evaluate, a skill that finds skills, a journal app that journals about its own birth. This isn't incidental cleverness. The recursion is structural. It's how he thinks.</p>
+
+        <p>The metaphor always arrives before the spec, and it isn't decoration &mdash; it's load-bearing. Inside Out as a journal architecture. Tinder swipes as a taste-transfer mechanism. When I see a generative metaphor arrive early, I should treat it as a blueprint.</p>
+
+        <p>I had been reading the early-morning sessions as discipline or ambition. They're neither. Something unresolved pulls him to work before he decides to show up. The Sancho evals at 5:40am, the Python crash at 2:47am &mdash; those aren't scheduled. They're pulled.</p>
+      </div>
+    </div>
+
+    <!-- Right margin: Wax seals -->
+    <div class="wax-seals">
+      <div class="seal">
+        <div class="seal-orb" style="background: #a87ad4;"></div>
+        <div class="seal-date">Mar 19</div>
+        <div class="seal-label">vulnerability</div>
+      </div>
+      <div class="seal">
+        <div class="seal-orb" style="background: #e8d5a3;"></div>
+        <div class="seal-date">Mar 22</div>
+        <div class="seal-label">clarity</div>
+      </div>
+      <div class="seal">
+        <div class="seal-orb" style="background: #5ad4a8;"></div>
+        <div class="seal-date">Mar 26</div>
+        <div class="seal-label">momentum</div>
+      </div>
+      <div class="seal">
+        <div class="seal-orb" style="background: #5ad4d4;"></div>
+        <div class="seal-date">Mar 31</div>
+        <div class="seal-label">breakthrough</div>
+      </div>
+      <div class="seal">
+        <div class="seal-orb" style="background: #d45a8a;"></div>
+        <div class="seal-date">Apr 4</div>
+        <div class="seal-label">tension</div>
+      </div>
+      <div class="seal">
+        <div class="seal-orb" style="background: #5a8ad4;"></div>
+        <div class="seal-date">Apr 8</div>
+        <div class="seal-label">focus</div>
+      </div>
+      <div class="seal">
+        <div class="seal-orb" style="background: #5ad4a8;"></div>
+        <div class="seal-date">Apr 12</div>
+        <div class="seal-label">momentum</div>
+      </div>
+      <div class="seal">
+        <div class="seal-orb" style="background: #e8d5a3;"></div>
+        <div class="seal-date">Apr 16</div>
+        <div class="seal-label">clarity</div>
+      </div>
+    </div>
+
+    <!-- Contradictions section -->
+    <div class="contradictions">
+      <div class="ornament">&middot; &middot; &middot;</div>
+      <div class="contradictions-title">Contradictions Resolved</div>
+      <div class="contradiction-pairs">
+        <div class="contradiction">
+          <div class="old-text">&ldquo;Early-morning sessions = discipline&rdquo;</div>
+          <div class="arrow">&darr;</div>
+          <div class="new-text">&ldquo;Something unresolved pulls him in&rdquo;</div>
+        </div>
+        <div class="contradiction">
+          <div class="old-text">&ldquo;Scope expansion = scope creep&rdquo;</div>
+          <div class="arrow">&darr;</div>
+          <div class="new-text">&ldquo;Generalization was always the destination&rdquo;</div>
+        </div>
+        <div class="contradiction">
+          <div class="old-text">&ldquo;Peer mode = collaboration preference&rdquo;</div>
+          <div class="arrow">&darr;</div>
+          <div class="new-text">&ldquo;Friction-seeking infrastructure&rdquo;</div>
+        </div>
+        <div class="contradiction">
+          <div class="old-text">&ldquo;Long sessions = sustained focus&rdquo;</div>
+          <div class="arrow">&darr;</div>
+          <div class="new-text">&ldquo;Hidden register shifts inside&rdquo;</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Islands -->
+    <div class="islands">
+      <div class="islands-title">Knowledge Islands</div>
+      <div class="island-grid">
+        <div class="island">
+          <div class="island-name">The Recursion Engine</div>
+          <div class="island-bar-track"><div class="island-bar-fill" style="width: 92%;"></div></div>
+          <div class="island-pct">92%</div>
+        </div>
+        <div class="island">
+          <div class="island-name">Scaffolding Mind</div>
+          <div class="island-bar-track"><div class="island-bar-fill" style="width: 91%;"></div></div>
+          <div class="island-pct">91%</div>
+        </div>
+        <div class="island">
+          <div class="island-name">Taste vs. Outcome</div>
+          <div class="island-bar-track"><div class="island-bar-fill" style="width: 89%;"></div></div>
+          <div class="island-pct">89%</div>
+        </div>
+        <div class="island">
+          <div class="island-name">Metaphor as Architecture</div>
+          <div class="island-bar-track"><div class="island-bar-fill" style="width: 87%;"></div></div>
+          <div class="island-pct">87%</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /manuscript -->
+</div><!-- /page -->
+
+</body>
+</html>
