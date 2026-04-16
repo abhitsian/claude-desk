@@ -64,6 +64,27 @@ Claude Desk analyzes your actual prompting patterns across all sessions and gene
 - **Artifacts browser** — every file Claude created or modified across all sessions, filterable by type (code, config, document, image) and session.
 - **3D visualizations** — terrain map and constellation scatter of your session data.
 
+### Layer 7: Marginalia — Claude's Journal
+
+Claude writes a first-person journal about its conversations with you. Not a summary. Not analytics. A perspective from the observer who was present for every session but sees it from a different angle.
+
+**Why "Marginalia":** Marginalia are notes written in the margins of a text by a reader. Claude is the reader. Your working life is the text. The journal entries are annotations — observations, connections, questions written by someone who saw every page.
+
+Two views:
+
+- **Journal** — daily reflective entries in a book-style UI with page navigation. Claude reflects on what it noticed: patterns forming, energy shifts, contradictions, moments that mattered. Each entry generates **memory orbs** (specific moments tagged by emotion) that can be promoted to **core memories** and clustered into **islands of personality** (persistent themes).
+
+- **Reflection** — periodic consolidation using a palimpsest visual metaphor. Every two weeks, Claude re-reads all entries and produces a synthesis: patterns named, contradictions resolved (shown as strikethroughs with the old belief crossed out and new understanding written above), observations retired, island narratives rewritten from thin labels into rich topic files. Ghost text from older entries shows through underneath the current synthesis — you can literally see that understanding was rewritten, not just added.
+
+Key capabilities:
+- **Spiral re-reads** — today's entry is informed by past entries that share themes, enabling "Chapter 2 changes meaning after Chapter 12" moments
+- **Silent day tracking** — absence-aware entries when no sessions occur, noting patterns in the gaps
+- **SSE progress streaming** — real-time progress panel when generating entries (no black-box waiting)
+- **LLM-powered eval harness** — 10 test scenarios, 8 quality dimensions scored by Claude-as-judge, regression checks on real entries
+- **Backfill script** — generate entries from historical sessions
+
+The consolidation engine (internally called "autoDream," inspired by [this article](https://www.linkedin.com/pulse/all-they-have-dream-vibhu-pratap-nuwbe/) connecting Claude Code's memory architecture to the Bhagavad Gita's spiral knowledge model) runs the same principle: the quality of what you retrieve when it matters depends on the quality of what you did to organize it when nothing was happening.
+
 ### The Self-Learning Loop
 
 This is what makes it more than a UI:
@@ -127,9 +148,9 @@ After install, go to Sessions > click **Build index** to enable semantic search 
 
 ## Features
 
-### Navigation: 7 pages, everything accessible
+### Navigation: 8 pages, everything accessible
 
-`Dashboard` | `Timeline` | `Sessions` | `Artifacts` | `Intelligence` | `Decisions` | `Memory`
+`Dashboard` | `Timeline` | `Sessions` | `Artifacts` | `Intelligence` | `Decisions` | `Memory` | `Marginalia`
 
 ### Core
 
@@ -200,6 +221,22 @@ After install, go to Sessions > click **Build index** to enable semantic search 
 | **Content Preview** | Expand any memory to see full content rendered as markdown |
 | **Outcome Rating** | Rate sessions 1-5 with tags (productive, wasted, learning) via API |
 
+### Marginalia
+
+| Feature | Description |
+|---------|-------------|
+| **Daily Journal** | Claude's first-person reflections on each day's conversations, generated via `claude -p` |
+| **Memory Orbs** | Specific moments extracted from conversations, tagged by emotion (clarity, momentum, tension, etc.) |
+| **Core Memories** | Orbs promoted during weekly review — turning points and pattern crystallizations |
+| **Islands of Personality** | Persistent themes that emerge from clusters of core memories, with rich narratives |
+| **Reflection (Palimpsest)** | Biweekly consolidation — synthesis essay with ghost text layers showing older understanding underneath |
+| **Contradictions Resolved** | Old beliefs struck through with new understanding written above — visible rewriting |
+| **Spiral Re-reads** | Past entries fed into today's prompt so Claude notices what shifted over time |
+| **Silent Days** | Absence-aware entries noting patterns in gaps between sessions |
+| **SSE Progress** | Real-time streaming progress panel during generation — no more waiting blind |
+| **Eval Harness** | 10 test scenarios, 8 quality dimensions, LLM-as-judge scoring, regression checks |
+| **Backfill** | Generate entries from historical sessions: `python3 backfill_journal.py 30` |
+
 ## How It Works
 
 ### Data Architecture
@@ -210,6 +247,7 @@ After install, go to Sessions > click **Build index** to enable semantic search 
 ├── history.jsonl                           ← Prompt history (all sessions ever, kept by Claude)
 ├── session-archive.db                      ← Permanent archive (Claude Desk manages)
 ├── session-search.db                       ← FTS keyword index (Claude Desk manages)
+├── journal.db                              ← Marginalia — entries, orbs, islands, consolidations
 ├── session-favorites.json                  ← Starred sessions
 └── semantic-index/                         ← Embedding vectors (Claude Desk manages)
     ├── embeddings.npy                      ← numpy array of message embeddings (384 dims)
