@@ -1,0 +1,9 @@
+{
+  "name": "Claude Desk",
+  "type": "python",
+  "entry": "claude_sessions/main.py",
+  "port": 8080,
+  "open": "http://localhost:8080",
+  "install": "pip install -r requirements.txt",
+  "description": "Personal dashboard over Claude Code sessions — journal, wrapped, dimensions, reflections, artifacts, timeline, and intelligence views. Always-on via launchd (com.claude.desk)."
+}
