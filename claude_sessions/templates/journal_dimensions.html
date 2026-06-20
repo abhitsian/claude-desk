@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+{% block title %}Marginalia — Dimensions{% endblock %}
+
+{% block content %}
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+
+<style>
+    .dimensions-page {
+        background: #f5f0e6;
+        border-radius: 4px;
+        padding: 48px 40px 80px;
+        min-height: 80vh;
+    }
+
+    .book-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 1100px;
+        margin: 0 auto 1rem;
+        padding: 0 0.5rem;
+    }
+
+    .book-title {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 1.1rem;
+        color: #7a6e5a;
+        font-style: italic;
+    }
+
+    .book-stats {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 0.8rem;
+        color: #a09480;
+    }
+
+    .header-btn {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 0.8rem;
+        color: #9a8e7a;
+        padding: 0.3rem 0.7rem;
+        border: 1px solid #d5cfc3;
+        border-radius: 4px;
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .header-btn:hover { background: rgba(180,170,155,0.15); color: #6a5e4a; }
+
+    /* Dimension cards */
+    .dim-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        max-width: 900px;
+        margin: 2rem auto;
+    }
+
+    @media (max-width: 768px) {
+        .dim-grid { grid-template-columns: 1fr; }
+    }
+
+    .dim-card {
+        background: #1a1510;
+        border-radius: 14px;
+        padding: 1.75rem;
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .dim-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(58,52,40,0.15);
+    }
+
+    /* First card spans full width */
+    .dim-card.featured { grid-column: span 2; }
+    @media (max-width: 768px) { .dim-card.featured { grid-column: span 1; } }
+
+    .dim-icon {
+        font-size: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .dim-name {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: #7a6e5a;
+        margin-bottom: 0.75rem;
+    }
+
+    .dim-summary {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 1.1rem;
+        color: #ece8e1;
+        line-height: 1.5;
+        margin-bottom: 0.75rem;
+    }
+
+    .dim-trajectory {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 0.85rem;
+        color: #a07840;
+        font-style: italic;
+        margin-bottom: 0.75rem;
+    }
+
+    .dim-meta {
+        display: flex;
+        gap: 1.25rem;
+        margin-top: 1rem;
+    }
+
+    .dim-meta-item {
+        font-family: 'DM Sans', sans-serif;
+        font-size: 0.65rem;
+        color: #7a6e5a;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .dim-meta-num {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #d4845a;
+        display: block;
+    }
+
+    /* Confidence bar */
+    .confidence-bar {
+        width: 100%;
+        height: 3px;
+        background: rgba(180,170,155,0.15);
+        border-radius: 2px;
+        margin-top: 1rem;
+        overflow: hidden;
+    }
+
+    .confidence-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #a07840, #d4845a);
+        border-radius: 2px;
+    }
+
+    /* Patterns list */
+    .patterns {
+        margin-top: 0.75rem;
+    }
+
+    .pattern {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 0.85rem;
+        color: #b5ac9a;
+        line-height: 1.5;
+        padding: 0.35rem 0;
+        border-bottom: 1px solid rgba(180,170,155,0.1);
+    }
+
+    .pattern:last-child { border-bottom: none; }
+
+    .pattern::before {
+        content: '';
+        display: inline-block;
+        width: 4px;
+        height: 4px;
+        background: #a07840;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+        vertical-align: middle;
+    }
+
+    /* Empty state */
+    .empty-dim {
+        text-align: center;
+        padding: 4rem 2rem;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+
+    /* Section title */
+    .section-title {
+        font-family: 'EB Garamond', Georgia, serif;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: #9a8e7a;
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+
+    /* CLAUDE.md preview */
+    .claude-md-preview {
+        max-width: 700px;
+        margin: 3rem auto 0;
+        background: rgba(26,21,16,0.04);
+        border: 1px solid rgba(180,170,155,0.2);
+        border-radius: 8px;
+        padding: 1.5rem;
+    }
+
+    .claude-md-preview pre {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.75rem;
+        color: #6a5e4a;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        overflow-x: auto;
+    }
+</style>
+
+<!-- Header -->
+<div class="book-header">
+    <div style="display: flex; align-items: center; gap: 1.5rem;">
+        <a href="/journal?view=journal" class="book-title" style="text-decoration: none; color: #b5ac9a;">Journal</a>
+        <span style="color: #d5cfc3;">|</span>
+        <a href="/journal?view=autodream" class="book-title" style="text-decoration: none; color: #b5ac9a;">Reflection</a>
+        <span style="color: #d5cfc3;">|</span>
+        <a href="/journal?view=dimensions" class="book-title" style="text-decoration: none; color: #4a4030;">Dimensions</a>
+    </div>
+    <div class="book-stats">
+        {% if dim_stats %}
+        {{ dim_stats.total_observations }} observations &middot; {{ dim_stats.profiles_count }} profiles
+        {% endif %}
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <button onclick="extractToday()" id="extract-btn" class="header-btn">Extract today</button>
+        <button onclick="consolidateAll()" id="consolidate-btn" class="header-btn">Consolidate</button>
+        <button onclick="applyToClaude()" id="apply-btn" class="header-btn">Apply to CLAUDE.md</button>
+    </div>
+</div>
+
+<div class="dimensions-page">
+
+{% if dim_profiles %}
+<div class="section-title">Your dimensional profile</div>
+
+<div class="dim-grid">
+    {% set icons = {'taste': '&#9830;', 'reasoning': '&#9672;', 'energy': '&#9734;', 'tempo': '&#9835;', 'language': '&#9998;'} %}
+    {% set dim_order = ['taste', 'reasoning', 'energy', 'tempo', 'language'] %}
+
+    {% for dim_name in dim_order %}
+    {% for p in dim_profiles %}
+    {% if p.dimension == dim_name %}
+    <div class="dim-card {{ 'featured' if loop.index <= 1 and dim_profiles|length > 2 else '' }}">
+        <div class="dim-icon">{{ icons.get(p.dimension, '&#9679;') | safe }}</div>
+        <div class="dim-name">{{ p.dimension }}</div>
+        <div class="dim-summary">{{ p.summary }}</div>
+
+        {% if p.trajectory %}
+        <div class="dim-trajectory">{{ p.trajectory }}</div>
+        {% endif %}
+
+        {% if p.profile and p.profile.key_patterns %}
+        <div class="patterns">
+            {% for pattern in p.profile.key_patterns[:3] %}
+            <div class="pattern">{{ pattern }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="dim-meta">
+            <div class="dim-meta-item">
+                <span class="dim-meta-num">{{ p.observation_count }}</span>
+                observations
+            </div>
+            <div class="dim-meta-item">
+                <span class="dim-meta-num">{{ (p.confidence * 100)|int }}%</span>
+                confidence
+            </div>
+            {% if p.last_consolidated_at %}
+            <div class="dim-meta-item">
+                <span class="dim-meta-num" style="font-size: 0.85rem;">{{ p.last_consolidated_at[:10] }}</span>
+                last updated
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="confidence-bar">
+            <div class="confidence-fill" style="width: {{ (p.confidence * 100)|int }}%;"></div>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% endfor %}
+</div>
+
+{% else %}
+<!-- Empty state -->
+<div class="empty-dim">
+    <div style="font-family: 'EB Garamond', serif; font-size: 2rem; color: #d5cfc3; margin-bottom: 1rem;">~</div>
+    <h2 style="font-family: 'EB Garamond', serif; font-size: 1.3rem; color: #6a5e4a; font-style: italic; margin-bottom: 0.75rem;">No dimensions yet</h2>
+    <p style="font-family: 'EB Garamond', serif; font-size: 0.95rem; color: #9a8e7a; line-height: 1.6; margin-bottom: 2rem;">
+        Dimensions are built from daily observations across five lenses: taste, reasoning, energy, tempo, and language. Click "Extract today" to create the first observations, then "Consolidate" to synthesize them into profiles.
+    </p>
+    <button onclick="extractToday()" id="extract-btn-empty" class="header-btn" style="font-size: 0.9rem; padding: 0.5rem 1.2rem;">
+        Extract today's observations
+    </button>
+    <div id="status" style="font-family: 'EB Garamond', serif; font-size: 0.85rem; color: #9a8e7a; margin-top: 1rem;"></div>
+</div>
+{% endif %}
+
+</div>
+
+<script>
+    async function extractToday() {
+        const btn = document.getElementById('extract-btn') || document.getElementById('extract-btn-empty');
+        const status = document.getElementById('status');
+        btn.disabled = true;
+        btn.textContent = 'Extracting...';
+        if (status) status.textContent = 'Analyzing today\'s sessions across 5 dimensions...';
+        try {
+            const res = await fetch('/api/dimensions/extract', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({date: new Date().toISOString().split('T')[0]}),
+            });
+            const data = await res.json();
+            if (data.ok) {
+                if (status) status.textContent = `${data.observations_saved} observations saved`;
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                if (status) status.textContent = data.error || 'Failed';
+                btn.textContent = 'Extract today';
+                btn.disabled = false;
+            }
+        } catch(e) {
+            if (status) status.textContent = 'Error: ' + e.message;
+            btn.textContent = 'Extract today';
+            btn.disabled = false;
+        }
+    }
+
+    async function consolidateAll() {
+        const btn = document.getElementById('consolidate-btn');
+        btn.disabled = true;
+        btn.textContent = 'Consolidating...';
+        try {
+            const res = await fetch('/api/dimensions/consolidate', {method: 'POST'});
+            const data = await res.json();
+            if (data.ok) window.location.reload();
+            else { btn.textContent = 'Consolidate'; btn.disabled = false; }
+        } catch { btn.textContent = 'Consolidate'; btn.disabled = false; }
+    }
+
+    async function applyToClaude() {
+        const btn = document.getElementById('apply-btn');
+        btn.disabled = true;
+        btn.textContent = 'Applying...';
+        try {
+            const res = await fetch('/api/dimensions/apply-to-claude-md', {method: 'POST'});
+            const data = await res.json();
+            btn.textContent = data.ok ? 'Applied' : 'Failed';
+            setTimeout(() => { btn.textContent = 'Apply to CLAUDE.md'; btn.disabled = false; }, 2000);
+        } catch { btn.textContent = 'Apply to CLAUDE.md'; btn.disabled = false; }
+    }
+</script>
+{% endblock %}

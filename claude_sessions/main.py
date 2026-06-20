@@ -29,7 +29,53 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Templates
 templates_dir = Path(__file__).parent / "templates"
-templates = Jinja2Templates(directory=templates_dir)
+_jinja_templates = Jinja2Templates(directory=templates_dir)
+
+
+class _CompatTemplates:
+    """Wrapper for Starlette TemplateResponse compatibility across versions.
+
+    Accepts both:
+      Old-style: (name, context_dict_with_request)
+      New-style: (request, name, context_without_request)
+
+    Detects Starlette version and calls the right native signature.
+    """
+
+    def __init__(self, jinja):
+        self._jinja = jinja
+        self.env = jinja.env
+        # Detect Starlette version
+        import starlette
+        self._new_api = hasattr(starlette, '__version__') and starlette.__version__ >= '1.0'
+
+    def TemplateResponse(self, *args, **kwargs):
+        request = None
+        name = None
+        context = {}
+
+        if len(args) >= 2 and hasattr(args[0], 'method'):
+            # New-style call: (request, name, context)
+            request = args[0]
+            name = args[1]
+            context = args[2] if len(args) > 2 else kwargs.get('context', {})
+        elif len(args) >= 2 and isinstance(args[0], str) and isinstance(args[1], dict):
+            # Old-style call: (name, {request: ..., ...})
+            name = args[0]
+            context = dict(args[1])  # copy to avoid mutating
+            request = context.pop("request", None)
+        else:
+            # Unknown — try passing through
+            return self._jinja.TemplateResponse(*args, **kwargs)
+
+        if self._new_api:
+            return self._jinja.TemplateResponse(request, name, context)
+        else:
+            context["request"] = request
+            return self._jinja.TemplateResponse(name, context)
+
+
+templates = _CompatTemplates(_jinja_templates)
 
 # Include API routes
 app.include_router(api_router)
@@ -985,6 +1031,7 @@ async def visualize_page(request: Request):
 async def artifacts_list(request: Request, type: str = ""):
     """Artifacts gallery — versioned creations with app launcher."""
     from .data.artifact_store import get_all_artifacts, get_artifact_stats
+    from .services.app_launcher import scan_apps, get_pinned_apps
 
     all_artifacts = get_all_artifacts(artifact_type=type if type else None, limit=200)
     stats = get_artifact_stats()
@@ -993,6 +1040,12 @@ async def artifacts_list(request: Request, type: str = ""):
     apps = [a for a in all_artifacts if a["artifact_type"] == "app" and a["exists_on_disk"]]
     other = [a for a in all_artifacts if a not in apps]
 
+    # Launchable apps from ~/claude-apps/
+    launchable_apps = scan_apps()
+
+    # Pinned apps
+    pinned_apps = get_pinned_apps()
+
     return templates.TemplateResponse(
         "artifacts_v2.html",
         {
@@ -1000,6 +1053,8 @@ async def artifacts_list(request: Request, type: str = ""):
             "apps": apps,
             "other_artifacts": other,
             "stats": stats,
+            "launchable_apps": launchable_apps,
+            "pinned_apps": pinned_apps,
         },
     )
 
@@ -1068,6 +1123,60 @@ async def open_artifact_in_finder(request: Request):
         subprocess.Popen(["open", "-R", path])
         return JSONResponse({"ok": True})
     return JSONResponse({"ok": False, "error": "File not found"}, status_code=404)
+
+
+# ===== App Launcher API =====
+
+
+@app.get("/api/apps")
+async def api_list_apps():
+    """List all apps in ~/claude-apps/ with their manifests."""
+    from .services.app_launcher import scan_apps, get_running_apps
+    return JSONResponse({"apps": scan_apps(), "running": get_running_apps()})
+
+
+@app.get("/api/apps/{app_name}")
+async def api_get_app(app_name: str):
+    """Get details for a specific app."""
+    from .services.app_launcher import get_app
+    app = get_app(app_name)
+    if not app:
+        return JSONResponse({"error": "App not found"}, status_code=404)
+    return JSONResponse(app)
+
+
+@app.post("/api/apps/{app_name}/launch")
+async def api_launch_app(app_name: str):
+    """Launch an app — install deps, start server, open browser."""
+    from .services.app_launcher import launch_app
+    import subprocess as sp
+    result = launch_app(app_name)
+    if result.get("ok") and result.get("url"):
+        try:
+            sp.Popen(["open", result["url"]])
+        except Exception:
+            pass
+    return JSONResponse(result)
+
+
+@app.post("/api/apps/{app_name}/stop")
+async def api_stop_app(app_name: str):
+    """Stop a running app."""
+    from .services.app_launcher import stop_app
+    return JSONResponse(stop_app(app_name))
+
+
+@app.post("/api/apps/rebuild")
+async def api_rebuild_artifact(request: Request):
+    """Rebuild an existing artifact as a proper app."""
+    from .services.app_launcher import rebuild_as_app
+    body = await request.json()
+    artifact_path = body.get("path", "")
+    app_name = body.get("app_name", "")
+    if not artifact_path or not app_name:
+        return JSONResponse({"ok": False, "error": "path and app_name required"}, status_code=400)
+    result = rebuild_as_app(artifact_path, app_name)
+    return JSONResponse(result)
 
 
 # ===== Analytics Page =====
@@ -1251,6 +1360,44 @@ async def get_session_outcome(session_id: str):
     return JSONResponse({"rated": True, **outcome})
 
 
+# ===== Wrapped =====
+
+
+@app.get("/wrapped", response_class=HTMLResponse)
+async def wrapped_page(request: Request, days: int = 30):
+    """Wrapped — dimensional analysis of your Claude usage."""
+    # Check for cached wrapped data
+    wrapped = None
+    cache_file = settings.claude_data_dir / "wrapped-latest.json"
+    if cache_file.exists():
+        try:
+            wrapped = json.loads(cache_file.read_text())
+        except Exception:
+            pass
+
+    return templates.TemplateResponse(
+        request,
+        "wrapped.html",
+        {"days": days, "wrapped": wrapped},
+    )
+
+
+@app.post("/api/wrapped/generate")
+async def api_wrapped_generate(request: Request):
+    """Generate Wrapped report."""
+    from .services.wrapped import generate_wrapped
+    body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+    days = body.get("days", 30)
+    try:
+        result = generate_wrapped(parser, days=days)
+        # Cache result
+        cache_file = settings.claude_data_dir / "wrapped-latest.json"
+        cache_file.write_text(json.dumps(result, default=str))
+        return JSONResponse({"ok": True})
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
 # ===== Marginalia (Journal + Reflection) =====
 
 
@@ -1285,12 +1432,25 @@ async def journal_page(request: Request, date: str = "", view: str = "journal"):
         if consolidations:
             consolidation = consolidations[0]
 
-    template = "journal.html" if view == "journal" else "journal_autodream.html"
+    # Dimensions data
+    dim_profiles = None
+    dim_stats = None
+    if view == "dimensions":
+        from .data.dimensions import get_all_profiles, get_dimension_stats
+        dim_profiles = get_all_profiles()
+        dim_stats = get_dimension_stats()
+
+    templates_map = {
+        "journal": "journal.html",
+        "autodream": "journal_autodream.html",
+        "dimensions": "journal_dimensions.html",
+    }
+    template = templates_map.get(view, "journal.html")
 
     return templates.TemplateResponse(
+        request,
         template,
         {
-            "request": request,
             "view": view,
             "stats": stats,
             "entries": entries,
@@ -1301,6 +1461,8 @@ async def journal_page(request: Request, date: str = "", view: str = "journal"):
             "selected_orbs": selected_orbs,
             "selected_date": date or (entries[0]["date"] if entries else ""),
             "consolidation": consolidation,
+            "dim_profiles": dim_profiles,
+            "dim_stats": dim_stats,
         },
     )
 
@@ -1384,7 +1546,10 @@ async def api_journal_generate_stream(date: str = ""):
 
     def _run():
         try:
-            generate_journal_entry(date, parser, on_progress=on_progress)
+            result = generate_journal_entry(date, parser, on_progress=on_progress)
+            if result is None:
+                # No done/error was emitted (e.g., no sessions) — send error
+                progress_queue.put({"step": "error", "detail": f"No sessions found for {date}"})
         except Exception as e:
             progress_queue.put({"step": "error", "detail": str(e)})
 
@@ -1425,6 +1590,62 @@ async def api_journal_generate_stream(date: str = ""):
             "Connection": "keep-alive",
         },
     )
+
+
+@app.get("/api/dimensions")
+async def api_dimensions():
+    """Get all dimensional profiles."""
+    from .data.dimensions import get_all_profiles, get_dimension_stats
+    return JSONResponse({"profiles": get_all_profiles(), "stats": get_dimension_stats()})
+
+
+@app.get("/api/dimensions/{dimension}")
+async def api_dimension_detail(dimension: str):
+    """Get a single dimension's profile + history + recent observations."""
+    from .data.dimensions import get_profile, get_history, get_observations
+    profile = get_profile(dimension)
+    history = get_history(dimension, limit=10)
+    observations = get_observations(dimension, limit=20)
+    return JSONResponse({"profile": profile, "history": history, "observations": observations})
+
+
+@app.post("/api/dimensions/extract")
+async def api_dimensions_extract(request: Request):
+    """Manually extract observations for a date."""
+    from .services.dimension_extractor import extract_daily_observations
+    body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+    date = body.get("date", datetime.now().strftime("%Y-%m-%d"))
+    try:
+        result = extract_daily_observations(date, parser)
+        return JSONResponse({"ok": True, **result})
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/dimensions/consolidate")
+async def api_dimensions_consolidate():
+    """Manually consolidate all dimensions."""
+    from .services.dimension_consolidator import consolidate_all_dimensions
+    try:
+        result = consolidate_all_dimensions()
+        return JSONResponse({"ok": True, **result})
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/dimensions/apply-to-claude-md")
+async def api_apply_profile():
+    """Export dimensional profile to CLAUDE.md."""
+    from .services.profile_exporter import apply_profile_to_claude_md
+    ok = apply_profile_to_claude_md()
+    return JSONResponse({"ok": ok})
+
+
+@app.get("/api/dimensions/preview")
+async def api_profile_preview():
+    """Preview what would be written to CLAUDE.md."""
+    from .services.profile_exporter import get_profile_preview
+    return JSONResponse({"preview": get_profile_preview()})
 
 
 @app.post("/api/journal/consolidate")

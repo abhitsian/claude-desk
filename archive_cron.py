@@ -68,6 +68,31 @@ def main():
     except Exception as e:
         print(f"Journal generation failed: {e}")
 
+    # Extract dimensional observations
+    try:
+        from claude_sessions.services.dimension_extractor import extract_daily_observations
+        from datetime import datetime, timedelta
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        result = extract_daily_observations(yesterday, parser)
+        print(f"Dimensions: {result.get('observations_saved', 0)} observations extracted")
+    except Exception as e:
+        print(f"Dimension extraction failed: {e}")
+
+    # Consolidate dimensions (biweekly)
+    try:
+        from claude_sessions.services.dimension_consolidator import (
+            should_consolidate_dimensions, consolidate_all_dimensions,
+        )
+        if should_consolidate_dimensions():
+            print("  Running dimension consolidation...")
+            result = consolidate_all_dimensions()
+            print(f"  Dimensions consolidated: {len(result.get('updated', []))} profiles")
+
+            from claude_sessions.services.profile_exporter import apply_profile_to_claude_md
+            apply_profile_to_claude_md()
+    except Exception as e:
+        print(f"Dimension consolidation failed: {e}")
+
     # Update semantic index if stale
     try:
         from claude_sessions.data.semantic_index import SemanticIndex

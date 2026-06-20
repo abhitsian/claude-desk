@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Wrapped - Stories</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0d0c0a;
+    --copper: #d4845a;
+    --bright: #ece8e1;
+    --secondary: #a89680;
+    --muted: #635145;
+    --font-heading: 'Playfair Display', serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+  body {
+    font-family: var(--font-body);
+    background: #000;
+    color: var(--bright);
+    overflow-x: hidden;
+  }
+
+  /* Phone frame on desktop */
+  .phone-frame {
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    top: 0; left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .scroll-container {
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  @media (min-width: 768px) {
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 200px, rgba(0,0,0,0.85) 400px);
+      z-index: 0;
+      pointer-events: none;
+    }
+    .scroll-container {
+      box-shadow: 0 0 80px rgba(0,0,0,0.8);
+    }
+  }
+
+  .card {
+    width: 100%;
+    max-width: 420px;
+    height: 100vh;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 3rem 2rem;
+    position: relative;
+    overflow: hidden;
+    text-align: center;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    opacity: 0.6;
+  }
+
+  .card > * { position: relative; z-index: 1; }
+
+  /* Unique gradients per card */
+  .card-hero::before { background: radial-gradient(circle at 30% 70%, #2a1a0e 0%, var(--bg) 70%); }
+  .card-archetype::before { background: radial-gradient(circle at 70% 30%, #1e1208 0%, var(--bg) 70%); }
+  .card-energy::before { background: radial-gradient(circle at 50% 80%, #1a150e 0%, var(--bg) 70%); }
+  .card-tempo::before { background: radial-gradient(circle at 20% 20%, #1c1610 0%, var(--bg) 70%); }
+  .card-language::before { background: radial-gradient(circle at 80% 60%, #1e160c 0%, var(--bg) 70%); }
+  .card-taste::before { background: radial-gradient(circle at 40% 40%, #201810 0%, var(--bg) 70%); }
+  .card-reasoning::before { background: radial-gradient(circle at 60% 80%, #1a120a 0%, var(--bg) 70%); }
+  .card-roast::before { background: radial-gradient(circle at 50% 50%, #261a0e 0%, var(--bg) 70%); }
+  .card-roast2::before { background: radial-gradient(circle at 30% 60%, #221810 0%, var(--bg) 70%); }
+  .card-roast3::before { background: radial-gradient(circle at 70% 40%, #241c12 0%, var(--bg) 70%); }
+  .card-twists::before { background: radial-gradient(circle at 50% 30%, #1e140c 0%, var(--bg) 70%); }
+  .card-closing::before { background: radial-gradient(circle at 50% 50%, #2a1e14 0%, var(--bg) 70%); }
+  .card-share::before { background: radial-gradient(circle at 50% 50%, #1a1208 0%, var(--bg) 60%); }
+
+  .big-number {
+    font-family: var(--font-heading);
+    font-size: 5rem;
+    font-weight: 900;
+    color: var(--copper);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+
+  .big-label {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--secondary);
+    margin-bottom: 2rem;
+  }
+
+  .headline {
+    font-family: var(--font-heading);
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+    color: var(--bright);
+  }
+
+  .subtext {
+    font-size: 0.95rem;
+    color: var(--secondary);
+    line-height: 1.6;
+    max-width: 320px;
+  }
+
+  .stat-row {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .stat-item {
+    text-align: center;
+  }
+
+  .stat-item .num {
+    font-family: var(--font-heading);
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--copper);
+  }
+
+  .stat-item .label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-top: 0.2rem;
+  }
+
+  .quote-mark {
+    font-family: var(--font-heading);
+    font-size: 6rem;
+    color: var(--copper);
+    opacity: 0.4;
+    line-height: 0.5;
+    margin-bottom: 0.5rem;
+  }
+
+  .roast-text {
+    font-family: var(--font-heading);
+    font-size: 1.3rem;
+    font-style: italic;
+    line-height: 1.5;
+    color: var(--bright);
+    max-width: 320px;
+  }
+
+  .twist-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--copper);
+    margin-bottom: 0.5rem;
+  }
+
+  .twist-text {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--bright);
+    max-width: 320px;
+  }
+
+  .closing-text {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-style: italic;
+    line-height: 1.5;
+    color: var(--bright);
+    max-width: 320px;
+  }
+
+  .copper-line {
+    width: 40px;
+    height: 2px;
+    background: var(--copper);
+    margin: 1.5rem auto;
+  }
+
+  /* Share card */
+  .share-card-inner {
+    border: 1px solid var(--muted);
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 320px;
+    text-align: center;
+  }
+
+  .share-card-inner .archetype-name {
+    font-family: var(--font-heading);
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--copper);
+    margin-bottom: 0.5rem;
+  }
+
+  .share-card-inner .share-stats {
+    font-size: 0.8rem;
+    color: var(--secondary);
+    margin-bottom: 1rem;
+  }
+
+  .share-card-inner .share-lines {
+    font-size: 0.85rem;
+    color: var(--bright);
+    line-height: 1.6;
+    margin-bottom: 1rem;
+  }
+
+  .share-card-inner .share-brand {
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  /* Progress dots */
+  .progress-dots {
+    position: fixed;
+    right: calc(50% - 220px);
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 100;
+  }
+
+  @media (max-width: 500px) {
+    .progress-dots { right: 12px; }
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+
+  .dot.active {
+    background: var(--copper);
+    transform: scale(1.5);
+  }
+
+  /* Scroll hint */
+  .scroll-hint {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    animation: bob 2s ease-in-out infinite;
+  }
+
+  .scroll-hint span {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+  }
+
+  .scroll-hint svg {
+    width: 20px;
+    height: 20px;
+    stroke: var(--muted);
+    fill: none;
+    stroke-width: 2;
+  }
+
+  @keyframes bob {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(8px); }
+  }
+
+  /* Word cloud */
+  .word-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.6rem;
+    justify-content: center;
+    max-width: 320px;
+    margin-top: 1rem;
+  }
+
+  .word-cloud span {
+    font-family: var(--font-body);
+    color: var(--secondary);
+    transition: color 0.2s;
+  }
+
+  .word-cloud span:nth-child(-n+3) { font-size: 1.5rem; color: var(--copper); font-weight: 700; }
+  .word-cloud span:nth-child(n+4):nth-child(-n+7) { font-size: 1.1rem; color: var(--bright); }
+  .word-cloud span:nth-child(n+8):nth-child(-n+11) { font-size: 0.9rem; }
+  .word-cloud span:nth-child(n+12) { font-size: 0.75rem; color: var(--muted); }
+
+  .never-words {
+    margin-top: 1.5rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .never-words span {
+    text-decoration: line-through;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+  /* Pet peeves */
+  .peeve-list {
+    list-style: none;
+    margin-top: 1rem;
+    text-align: left;
+  }
+
+  .peeve-list li {
+    color: var(--secondary);
+    font-size: 0.85rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid rgba(99,81,69,0.3);
+  }
+
+  .peeve-list li::before {
+    content: '\00d7';
+    color: var(--copper);
+    margin-right: 0.5rem;
+    font-weight: 700;
+  }
+
+  /* Twist columns */
+  .twist-columns {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1rem;
+    text-align: left;
+  }
+
+  .twist-col {
+    flex: 1;
+  }
+
+  .twist-col.expected .twist-text {
+    text-decoration: line-through;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .twist-col.reality .twist-text {
+    color: var(--bright);
+    font-size: 0.9rem;
+  }
+</style>
+</head>
+<body>
+
+<nav class="progress-dots" id="progressDots"></nav>
+
+<div class="scroll-container" id="scrollContainer">
+
+  <!-- 0: Hero -->
+  <section class="card card-hero" data-index="0">
+    <div class="big-label">Your Year with Claude</div>
+    <div class="stat-row">
+      <div class="stat-item"><div class="num">89</div><div class="label">Conversations</div></div>
+      <div class="stat-item"><div class="num">4,847</div><div class="label">Messages</div></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-item"><div class="num">127.3h</div><div class="label">Hours</div></div>
+      <div class="stat-item"><div class="num">24</div><div class="label">Day Streak</div></div>
+    </div>
+    <div class="scroll-hint">
+      <span>Scroll</span>
+      <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+  </section>
+
+  <!-- 1: Archetype -->
+  <section class="card card-archetype" data-index="1">
+    <div class="big-label">You are</div>
+    <div class="headline" style="font-size:2.5rem; color: var(--copper);">The Recursive Architect</div>
+    <div class="copper-line"></div>
+    <div class="subtext">You build tools that build themselves. Every feature folds back on its own creation.</div>
+  </section>
+
+  <!-- 2: Energy -->
+  <section class="card card-energy" data-index="2">
+    <div class="big-label">Your Energy</div>
+    <div class="big-number">17:00</div>
+    <div class="big-label">Peak Hour</div>
+    <div class="stat-row">
+      <div class="stat-item"><div class="num">Tue</div><div class="label">Busiest Day</div></div>
+      <div class="stat-item"><div class="num">12</div><div class="label">Before 6am</div></div>
+      <div class="stat-item"><div class="num">8</div><div class="label">After 10pm</div></div>
+    </div>
+    <div style="margin-top:1.5rem;">
+      <div class="subtext">Longest session: <span style="color:var(--copper);">June planning deep dive</span> at 387 min</div>
+    </div>
+  </section>
+
+  <!-- 3: Tempo -->
+  <section class="card card-tempo" data-index="3">
+    <div class="big-label">Your Tempo</div>
+    <div class="big-number">34s</div>
+    <div class="big-label">Median Between Messages</div>
+    <div class="stat-row">
+      <div class="stat-item"><div class="num">41%</div><div class="label">Quick Commands</div></div>
+      <div class="stat-item"><div class="num">12%</div><div class="label">Deep Prompts</div></div>
+    </div>
+  </section>
+
+  <!-- 4: Language -->
+  <section class="card card-language" data-index="4">
+    <div class="big-label">Your Language</div>
+    <div class="big-number" style="font-size:3rem;">2,847</div>
+    <div class="big-label">Unique Words</div>
+    <div class="word-cloud">
+      <span>claude</span><span>session</span><span>make</span>
+      <span>task</span><span>check</span><span>build</span><span>update</span>
+      <span>page</span><span>work</span><span>design</span><span>test</span>
+      <span>skill</span><span>add</span><span>spec</span><span>meeting</span>
+    </div>
+    <div class="never-words">
+      <span>synergy</span><span>leverage</span><span>paradigm</span>
+      <span>disrupt</span><span>ecosystem</span><span>holistic</span>
+    </div>
+  </section>
+
+  <!-- 5: Taste -->
+  <section class="card card-taste" data-index="5">
+    <div class="big-label">Your Taste</div>
+    <div class="headline" style="font-size:1.4rem;">You rejected 47 first drafts this month. Claude has learned to start with version 2.</div>
+    <div class="copper-line"></div>
+    <div class="stat-row">
+      <div class="stat-item"><div class="num">23%</div><div class="label">Messages are Revisions</div></div>
+      <div class="stat-item"><div class="num">142</div><div class="label">Revision Requests</div></div>
+    </div>
+    <ul class="peeve-list">
+      <li>verbose explanations</li>
+      <li>generic suggestions</li>
+      <li>unnecessary comments in code</li>
+    </ul>
+  </section>
+
+  <!-- 6: Reasoning -->
+  <section class="card card-reasoning" data-index="6">
+    <div class="big-label">Your Reasoning</div>
+    <div class="headline">You think in metaphors first, specs second. The analogy IS the architecture.</div>
+    <div class="copper-line"></div>
+    <div class="stat-row">
+      <div class="stat-item"><div class="num" style="font-size:1.2rem;">Analogical</div><div class="label">Primary Style</div></div>
+    </div>
+    <div style="margin-top:1rem;text-align:left;max-width:300px;">
+      <div class="subtext"><strong style="color:var(--copper);">Strength:</strong> Connecting unrelated domains into working systems</div>
+      <div class="subtext" style="margin-top:0.5rem;"><strong style="color:var(--muted);">Gap:</strong> Skips requirements gathering &mdash; jumps straight to the generative frame</div>
+    </div>
+  </section>
+
+  <!-- 7: Roast 1 -->
+  <section class="card card-roast" data-index="7">
+    <div class="big-label">Roast</div>
+    <div class="quote-mark">&ldquo;</div>
+    <div class="roast-text">You asked for 'something simple' 34 times. The average result was 847 lines of code.</div>
+  </section>
+
+  <!-- 8: Roast 2 -->
+  <section class="card card-roast2" data-index="8">
+    <div class="big-label">Roast</div>
+    <div class="quote-mark">&ldquo;</div>
+    <div class="roast-text">Your 2:47 AM sessions are not discipline. They're unresolved thoughts that couldn't wait for morning.</div>
+  </section>
+
+  <!-- 9: Roast 3 -->
+  <section class="card card-roast3" data-index="9">
+    <div class="big-label">Roast</div>
+    <div class="quote-mark">&ldquo;</div>
+    <div class="roast-text">You say 'make it shorter' more than any other instruction. Your prompts average 200 words.</div>
+  </section>
+
+  <!-- 10: Plot Twists -->
+  <section class="card card-twists" data-index="10">
+    <div class="big-label">Plot Twists</div>
+    <div style="text-align:left;max-width:320px;">
+      <div class="twist-text" style="margin-bottom:1.5rem;">Your most productive sessions aren't the 6-hour marathons &mdash; they're the 12-minute bursts where you already knew what you wanted.</div>
+      <div class="copper-line" style="margin:1.5rem 0;"></div>
+      <div class="twist-text">You think you're a morning person. Your data says you're a 'whenever something is unfinished' person.</div>
+    </div>
+  </section>
+
+  <!-- 11: Closing -->
+  <section class="card card-closing" data-index="11">
+    <div class="closing-text">You're not using Claude as a tool. You're using it as a mirror &mdash; and the reflection keeps building things.</div>
+  </section>
+
+  <!-- 12: Share Card -->
+  <section class="card card-share" data-index="12">
+    <div class="share-card-inner">
+      <div class="archetype-name">The Recursive Architect</div>
+      <div class="share-stats">89 conversations &middot; 127h &middot; 24-day streak</div>
+      <div class="share-lines">
+        Rejected 47 first drafts.<br>
+        Started thinking in metaphors.<br>
+        Claude learned to start with version 2.
+      </div>
+      <div class="copper-line"></div>
+      <div class="share-brand">Claude Wrapped</div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  const cards = document.querySelectorAll('.card');
+  const dotsContainer = document.getElementById('progressDots');
+  const scrollContainer = document.getElementById('scrollContainer');
+
+  // Create dots
+  cards.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'dot' + (i === 0 ? ' active' : '');
+    dot.dataset.index = i;
+    dot.addEventListener('click', () => {
+      cards[i].scrollIntoView({ behavior: 'smooth' });
+    });
+    dotsContainer.appendChild(dot);
+  });
+
+  const dots = document.querySelectorAll('.dot');
+
+  // Intersection observer for active dot
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const idx = parseInt(entry.target.dataset.index);
+        dots.forEach(d => d.classList.remove('active'));
+        if (dots[idx]) dots[idx].classList.add('active');
+
+        // Hide scroll hint after first card
+        const hint = document.querySelector('.scroll-hint');
+        if (hint && idx > 0) hint.style.opacity = '0';
+      }
+    });
+  }, { threshold: 0.6 });
+
+  cards.forEach(card => observer.observe(card));
+
+  // Keyboard navigation
+  let currentCard = 0;
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      currentCard = Math.min(currentCard + 1, cards.length - 1);
+      cards[currentCard].scrollIntoView({ behavior: 'smooth' });
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      currentCard = Math.max(currentCard - 1, 0);
+      cards[currentCard].scrollIntoView({ behavior: 'smooth' });
+    }
+  });
+
+  // Update currentCard on scroll
+  const scrollObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        currentCard = parseInt(entry.target.dataset.index);
+      }
+    });
+  }, { threshold: 0.6 });
+
+  cards.forEach(card => scrollObserver.observe(card));
+</script>
+</body>
+</html>

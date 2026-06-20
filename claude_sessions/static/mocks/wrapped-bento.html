@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Wrapped - Bento</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0d0c0a;
+    --copper: #d4845a;
+    --bright: #ece8e1;
+    --secondary: #a89680;
+    --muted: #635145;
+    --font-heading: 'Playfair Display', serif;
+    --font-body: 'DM Sans', sans-serif;
+    --gap: 12px;
+    --radius: 16px;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--bright);
+    padding: 1.5rem;
+    min-height: 100vh;
+  }
+
+  .bento-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--gap);
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 768px) {
+    .bento-grid { grid-template-columns: repeat(2, 1fr); }
+    .tile.span-4 { grid-column: span 2; }
+    .tile.span-2x2 { grid-column: span 2; grid-row: span 2; }
+    .tile.span-2x1 { grid-column: span 2; }
+    .tile.tall { grid-row: span 2; }
+  }
+
+  .tile {
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .tile:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 32px rgba(212,132,90,0.15);
+  }
+
+  .tile.span-2x2 { grid-column: span 2; grid-row: span 2; padding: 2rem; }
+  .tile.span-2x1 { grid-column: span 2; }
+  .tile.span-4 { grid-column: span 4; }
+  .tile.tall { grid-row: span 2; }
+
+  /* Tile backgrounds */
+  .tile-hero { background: linear-gradient(135deg, #1a1208 0%, #0d0c0a 100%); }
+  .tile-archetype { background: linear-gradient(160deg, #1e150c 0%, #0d0c0a 100%); }
+  .tile-energy { background: linear-gradient(145deg, #181008 0%, #0d0c0a 100%); }
+  .tile-tempo { background: linear-gradient(130deg, #1c1410 0%, #0d0c0a 100%); }
+  .tile-language { background: linear-gradient(170deg, #1a130a 0%, #0d0c0a 100%); }
+  .tile-taste { background: linear-gradient(150deg, #201610 0%, #0d0c0a 100%); }
+  .tile-reasoning { background: linear-gradient(140deg, #1a120c 0%, #0d0c0a 100%); }
+  .tile-roasts { background: linear-gradient(135deg, #261a0e 0%, #140e08 80%); }
+  .tile-twists { background: linear-gradient(155deg, #1e160e 0%, #0d0c0a 100%); }
+  .tile-closing { background: linear-gradient(180deg, #1a1410 0%, #0d0c0a 100%); }
+
+  .tile-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    margin-bottom: 0.75rem;
+  }
+
+  /* Hero tile */
+  .tile-hero .hero-number {
+    font-family: var(--font-heading);
+    font-size: 5.5rem;
+    font-weight: 900;
+    color: var(--copper);
+    line-height: 1;
+  }
+
+  .tile-hero .hero-label {
+    font-size: 1.1rem;
+    color: var(--secondary);
+    margin-top: 0.25rem;
+  }
+
+  .tile-hero .hero-sub-stats {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .hero-sub-stat .num {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--bright);
+  }
+
+  .hero-sub-stat .label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+
+  /* Archetype */
+  .tile-archetype .archetype-name {
+    font-family: var(--font-heading);
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--copper);
+    line-height: 1.2;
+    margin-bottom: 0.5rem;
+  }
+
+  .tile-archetype .archetype-desc {
+    font-size: 0.85rem;
+    color: var(--secondary);
+    line-height: 1.5;
+  }
+
+  /* Energy */
+  .tile-energy .peak {
+    font-family: var(--font-heading);
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--copper);
+  }
+
+  .tile-energy .detail {
+    font-size: 0.8rem;
+    color: var(--secondary);
+    margin-top: 0.5rem;
+    line-height: 1.5;
+  }
+
+  /* Tempo */
+  .tile-tempo .tempo-big {
+    font-family: var(--font-heading);
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--bright);
+  }
+
+  .tile-tempo .tempo-row {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.75rem;
+  }
+
+  .tile-tempo .tempo-stat {
+    font-size: 0.8rem;
+    color: var(--secondary);
+  }
+
+  .tile-tempo .tempo-stat strong {
+    color: var(--copper);
+    font-weight: 700;
+  }
+
+  /* Language / word cloud */
+  .word-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.5rem;
+    align-items: baseline;
+  }
+
+  .word-cloud span { color: var(--secondary); transition: color 0.2s; }
+  .word-cloud span:nth-child(-n+3) { font-size: 1.6rem; color: var(--copper); font-weight: 700; font-family: var(--font-heading); }
+  .word-cloud span:nth-child(n+4):nth-child(-n+7) { font-size: 1.1rem; color: var(--bright); }
+  .word-cloud span:nth-child(n+8):nth-child(-n+11) { font-size: 0.85rem; }
+  .word-cloud span:nth-child(n+12) { font-size: 0.7rem; color: var(--muted); }
+
+  .unique-count {
+    font-family: var(--font-heading);
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--muted);
+    margin-top: 0.75rem;
+  }
+
+  .unique-count em {
+    font-style: normal;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: block;
+    color: var(--muted);
+  }
+
+  /* Taste tile */
+  .tile-taste .taste-headline {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    font-style: italic;
+    color: var(--bright);
+    line-height: 1.4;
+    margin-bottom: 1rem;
+  }
+
+  .tile-taste .taste-stats {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .taste-stat .num {
+    font-family: var(--font-heading);
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--copper);
+  }
+
+  .taste-stat .label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+
+  .peeve {
+    font-size: 0.8rem;
+    color: var(--secondary);
+    padding: 0.3rem 0;
+    border-bottom: 1px solid rgba(99,81,69,0.2);
+  }
+
+  .peeve::before {
+    content: '\00d7';
+    color: var(--copper);
+    margin-right: 0.4rem;
+    font-weight: 700;
+  }
+
+  /* Reasoning */
+  .tile-reasoning .reasoning-style {
+    font-family: var(--font-heading);
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--copper);
+    margin-bottom: 0.5rem;
+  }
+
+  .tile-reasoning .reasoning-text {
+    font-size: 0.85rem;
+    color: var(--secondary);
+    line-height: 1.5;
+  }
+
+  /* Roasts tile */
+  .tile-roasts .roast-item {
+    margin-bottom: 1.5rem;
+    position: relative;
+    padding-left: 2rem;
+  }
+
+  .tile-roasts .roast-item:last-child { margin-bottom: 0; }
+
+  .tile-roasts .roast-mark {
+    font-family: var(--font-heading);
+    font-size: 3rem;
+    color: var(--copper);
+    opacity: 0.4;
+    position: absolute;
+    left: 0;
+    top: -0.5rem;
+    line-height: 1;
+  }
+
+  .tile-roasts .roast-text {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-style: italic;
+    color: var(--bright);
+    line-height: 1.5;
+  }
+
+  /* Twists */
+  .tile-twists .twist-item {
+    margin-bottom: 1rem;
+  }
+
+  .tile-twists .twist-item:last-child { margin-bottom: 0; }
+
+  .tile-twists .twist-text {
+    font-size: 0.9rem;
+    color: var(--bright);
+    line-height: 1.5;
+  }
+
+  .twist-divider {
+    width: 30px;
+    height: 1px;
+    background: var(--muted);
+    margin: 1rem 0;
+  }
+
+  /* Closing */
+  .tile-closing .closing-text {
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-style: italic;
+    color: var(--bright);
+    line-height: 1.5;
+  }
+
+  /* Expanded overlay */
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    cursor: pointer;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .overlay.active { display: flex; }
+
+  .overlay-content {
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: var(--radius);
+    padding: 3rem;
+    position: relative;
+    animation: scaleIn 0.3s ease;
+  }
+
+  .overlay-content .close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    color: var(--muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: var(--font-body);
+  }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div class="bento-grid">
+
+  <!-- Hero 2x2 -->
+  <div class="tile tile-hero span-2x2" data-tile="hero">
+    <div class="tile-label">Your Year with Claude</div>
+    <div class="hero-number">4,847</div>
+    <div class="hero-label">messages exchanged</div>
+    <div class="hero-sub-stats">
+      <div class="hero-sub-stat"><div class="num">89</div><div class="label">Conversations</div></div>
+      <div class="hero-sub-stat"><div class="num">127.3h</div><div class="label">Hours</div></div>
+      <div class="hero-sub-stat"><div class="num">24</div><div class="label">Day Streak</div></div>
+    </div>
+  </div>
+
+  <!-- Archetype 2x1 -->
+  <div class="tile tile-archetype span-2x1" data-tile="archetype">
+    <div class="tile-label">Your Archetype</div>
+    <div class="archetype-name">The Recursive Architect</div>
+    <div class="archetype-desc">You build tools that build themselves. Every feature folds back on its own creation.</div>
+  </div>
+
+  <!-- Energy 1x1 -->
+  <div class="tile tile-energy" data-tile="energy">
+    <div class="tile-label">Peak Energy</div>
+    <div class="peak">17:00</div>
+    <div class="detail">Busiest day: Tuesday<br>12 before-6am sessions<br>8 after-10pm sessions</div>
+  </div>
+
+  <!-- Tempo 1x1 -->
+  <div class="tile tile-tempo" data-tile="tempo">
+    <div class="tile-label">Your Tempo</div>
+    <div class="tempo-big">34s</div>
+    <div class="tempo-row">
+      <div class="tempo-stat"><strong>41%</strong> quick</div>
+      <div class="tempo-stat"><strong>12%</strong> deep</div>
+    </div>
+  </div>
+
+  <!-- Language 1x1 + word cloud -->
+  <div class="tile tile-language tall" data-tile="language">
+    <div class="tile-label">Your Words</div>
+    <div class="word-cloud">
+      <span>claude</span><span>session</span><span>make</span>
+      <span>task</span><span>check</span><span>build</span><span>update</span>
+      <span>page</span><span>work</span><span>design</span><span>test</span>
+      <span>skill</span><span>add</span><span>spec</span><span>meeting</span>
+    </div>
+    <div class="unique-count">2,847 <em>unique words</em></div>
+  </div>
+
+  <!-- Taste tall -->
+  <div class="tile tile-taste tall" data-tile="taste">
+    <div class="tile-label">Your Taste</div>
+    <div class="taste-headline">You rejected 47 first drafts this month. Claude has learned to start with version 2.</div>
+    <div class="taste-stats">
+      <div class="taste-stat"><div class="num">23%</div><div class="label">Revisions</div></div>
+      <div class="taste-stat"><div class="num">142</div><div class="label">Requests</div></div>
+    </div>
+    <div class="peeve">verbose explanations</div>
+    <div class="peeve">generic suggestions</div>
+    <div class="peeve">unnecessary comments in code</div>
+  </div>
+
+  <!-- Reasoning 1x1 -->
+  <div class="tile tile-reasoning" data-tile="reasoning">
+    <div class="tile-label">How You Think</div>
+    <div class="reasoning-style">Analogical</div>
+    <div class="reasoning-text">You think in metaphors first, specs second. The analogy IS the architecture.</div>
+  </div>
+
+  <!-- Roasts full width -->
+  <div class="tile tile-roasts span-4" data-tile="roasts">
+    <div class="tile-label">Roasts</div>
+    <div style="display:flex;gap:2rem;flex-wrap:wrap;">
+      <div class="roast-item" style="flex:1;min-width:200px;">
+        <div class="roast-mark">&ldquo;</div>
+        <div class="roast-text">You asked for 'something simple' 34 times. The average result was 847 lines of code.</div>
+      </div>
+      <div class="roast-item" style="flex:1;min-width:200px;">
+        <div class="roast-mark">&ldquo;</div>
+        <div class="roast-text">Your 2:47 AM sessions are not discipline. They're unresolved thoughts that couldn't wait for morning.</div>
+      </div>
+      <div class="roast-item" style="flex:1;min-width:200px;">
+        <div class="roast-mark">&ldquo;</div>
+        <div class="roast-text">You say 'make it shorter' more than any other instruction. Your prompts average 200 words.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plot Twists 2x1 -->
+  <div class="tile tile-twists span-2x1" data-tile="twists">
+    <div class="tile-label">Plot Twists</div>
+    <div class="twist-item">
+      <div class="twist-text">Your most productive sessions aren't the 6-hour marathons &mdash; they're the 12-minute bursts where you already knew what you wanted.</div>
+    </div>
+    <div class="twist-divider"></div>
+    <div class="twist-item">
+      <div class="twist-text">You think you're a morning person. Your data says you're a 'whenever something is unfinished' person.</div>
+    </div>
+  </div>
+
+  <!-- Closing 2x1 -->
+  <div class="tile tile-closing span-2x1" data-tile="closing">
+    <div class="tile-label">The Closing Line</div>
+    <div class="closing-text">You're not using Claude as a tool. You're using it as a mirror &mdash; and the reflection keeps building things.</div>
+  </div>
+
+</div>
+
+<!-- Overlay for expanded tiles -->
+<div class="overlay" id="overlay">
+  <div class="overlay-content" id="overlayContent">
+    <button class="close-btn" id="closeBtn">&times;</button>
+  </div>
+</div>
+
+<script>
+  const overlay = document.getElementById('overlay');
+  const overlayContent = document.getElementById('overlayContent');
+  const closeBtn = document.getElementById('closeBtn');
+
+  document.querySelectorAll('.tile').forEach(tile => {
+    tile.addEventListener('click', () => {
+      const clone = tile.cloneNode(true);
+      clone.style.transform = 'none';
+      clone.style.cursor = 'default';
+      clone.style.maxWidth = '100%';
+
+      // Scale up text in expanded view
+      clone.querySelectorAll('.hero-number').forEach(el => el.style.fontSize = '7rem');
+      clone.querySelectorAll('.archetype-name').forEach(el => el.style.fontSize = '2.5rem');
+      clone.querySelectorAll('.roast-text').forEach(el => el.style.fontSize = '1.3rem');
+
+      // Get tile background
+      const style = getComputedStyle(tile);
+      overlayContent.style.background = style.background;
+
+      overlayContent.innerHTML = '';
+      overlayContent.appendChild(closeBtn);
+      overlayContent.appendChild(clone);
+      overlay.classList.add('active');
+    });
+  });
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      overlay.classList.remove('active');
+    }
+  });
+
+  closeBtn.addEventListener('click', () => {
+    overlay.classList.remove('active');
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') overlay.classList.remove('active');
+  });
+</script>
+</body>
+</html>

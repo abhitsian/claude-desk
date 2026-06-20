@@ -542,7 +542,8 @@ def _generate_silence_entry(date: str, progress=None) -> Optional[dict]:
 
     entries = get_journal_entries(limit=5)
     if not entries:
-        return None  # Can't write about silence with no context
+        prog("error", "No previous entries to provide context for a silence entry")
+        return None
 
     recent_text = "\n\n".join(
         f"[{e['date']} — {e['emotional_tone']}] {e['content'][:200]}" for e in entries[:3]
@@ -567,6 +568,7 @@ def _generate_silence_entry(date: str, progress=None) -> Optional[dict]:
         prompt,
     )
     if not result:
+        prog("error", "Claude did not respond for silence entry")
         return None
 
     try:
@@ -574,6 +576,7 @@ def _generate_silence_entry(date: str, progress=None) -> Optional[dict]:
     except json.JSONDecodeError:
         parsed = _extract_json(result)
         if not parsed:
+            prog("error", "Could not parse silence entry response")
             return None
 
     tone = parsed.get("emotional_tone", "focus")

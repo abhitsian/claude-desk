@@ -35,6 +35,95 @@
         {% endfor %}
     </div>
 
+    <!-- Pinned Apps -->
+    {% if pinned_apps %}
+    <section class="mb-12">
+        <div class="flex items-center gap-3 mb-5 fade-up">
+            <h2 class="font-display text-lg font-semibold text-ink-100">Apps</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for pa in pinned_apps %}
+            <div class="border border-ink-800/40 rounded-lg overflow-hidden fade-up hover:border-copper-500/30 transition-all">
+                <div class="p-5">
+                    <div class="flex items-start justify-between mb-2">
+                        <h3 class="text-ink-50 font-display font-semibold text-base">{{ pa.name }}</h3>
+                        {% if pa.running %}
+                        <span class="text-xs text-sage-400 flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 bg-sage-400 rounded-full inline-block" style="animation: gentlePulse 2s ease-in-out infinite;"></span>
+                            Running
+                        </span>
+                        {% else %}
+                        <span class="text-xs text-ink-600">Stopped</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-ink-400 text-sm mb-3 leading-relaxed">{{ pa.description }}</p>
+                    <div class="text-ink-600 text-xs mb-4">
+                        {{ pa.type }} &middot; port {{ pa.port }}
+                    </div>
+                    <div class="flex gap-2">
+                        {% if pa.running %}
+                        <a href="{{ pa.url }}" target="_blank"
+                           class="px-4 py-1.5 text-xs font-medium bg-copper-500/10 text-copper-400 border border-copper-500/25 rounded-md hover:bg-copper-500/20 transition-colors">
+                            Open
+                        </a>
+                        {% if not pa.always_running %}
+                        <button onclick="stopApp('{{ pa.dir_name }}')"
+                                class="px-3 py-1.5 text-xs text-ink-400 border border-ink-700/50 rounded-md hover:text-copper-400 hover:border-copper-500/30 transition-colors">
+                            Stop
+                        </button>
+                        {% endif %}
+                        {% else %}
+                        <button onclick="launchApp('{{ pa.dir_name }}')"
+                                class="px-4 py-1.5 text-xs font-medium bg-copper-500/10 text-copper-400 border border-copper-500/25 rounded-md hover:bg-copper-500/20 transition-colors">
+                            Launch
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Launchable Apps from ~/claude-apps/ -->
+    {% if launchable_apps %}
+    <section class="mb-12">
+        <div class="flex items-center gap-3 mb-5 fade-up">
+            <h2 class="font-display text-lg font-semibold text-ink-100">Launchable Apps</h2>
+            <span class="text-ink-600 text-xs">from ~/claude-apps/</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for la in launchable_apps %}
+            <div class="art-card border border-ink-800/40 rounded-lg overflow-hidden fade-up hover:border-copper-500/30 transition-all p-4">
+                <div class="flex items-start justify-between mb-3">
+                    <div>
+                        <h3 class="text-ink-100 font-medium text-sm">{{ la.name }}</h3>
+                        <p class="text-ink-500 text-xs mt-0.5">{{ la.description or la.dir_name }}</p>
+                    </div>
+                    <span class="text-ink-600 text-xs px-2 py-0.5 border border-ink-700/50 rounded">{{ la.type }}</span>
+                </div>
+                <div class="text-ink-500 text-xs mb-3">{{ la.entry }} {% if la.port %}&middot; port {{ la.port }}{% endif %}</div>
+                <div class="flex gap-2">
+                    {% if la.running %}
+                    <button onclick="stopApp('{{ la.dir_name }}')" class="px-3 py-1 text-xs bg-ink-800 text-copper-400 border border-copper-500/30 rounded hover:bg-ink-700 transition-colors">
+                        Stop
+                    </button>
+                    <a href="{{ la.url or 'http://localhost:' ~ la.port }}" target="_blank" class="px-3 py-1 text-xs bg-copper-500/10 text-copper-400 border border-copper-500/30 rounded hover:bg-copper-500/20 transition-colors">
+                        Open
+                    </a>
+                    {% else %}
+                    <button onclick="launchApp('{{ la.dir_name }}')" class="px-3 py-1 text-xs bg-copper-500/10 text-copper-400 border border-copper-500/30 rounded hover:bg-copper-500/20 transition-colors">
+                        Launch
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
     <!-- Apps section — launchable HTML/web artifacts -->
     {% if apps %}
     <section class="mb-12">
@@ -70,7 +159,8 @@
                         <span class="text-ink-600 text-xs">{{ a.last_modified[:10] }}</span>
                         <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             {% if a.exists_on_disk %}
-                            <button onclick="window.open('/artifacts/{{ a.id }}/preview', '_blank')" class="btn-action text-xs">Launch</button>
+                            <button onclick="window.open('/artifacts/{{ a.id }}/preview', '_blank')" class="btn-action text-xs">Preview</button>
+                            <button onclick="rebuildAsApp('{{ a.file_path }}', '{{ a.title | e }}')" class="btn-action text-xs">Rebuild as App</button>
                             {% endif %}
                             <a href="/artifacts/{{ a.id }}" class="btn-action text-xs">Details</a>
                         </div>
@@ -177,6 +267,71 @@ function buildIndex() {
             setTimeout(() => location.reload(), 800);
         })
         .catch(() => { btn.textContent = 'Build Index'; btn.disabled = false; });
+}
+
+async function launchApp(name) {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = 'Starting...';
+    try {
+        const res = await fetch(`/api/apps/${name}/launch`, { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+            showToast(`${name} launched on port ${data.port}`);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.error || 'Launch failed');
+            btn.textContent = 'Launch';
+            btn.disabled = false;
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message);
+        btn.textContent = 'Launch';
+        btn.disabled = false;
+    }
+}
+
+async function stopApp(name) {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = 'Stopping...';
+    try {
+        await fetch(`/api/apps/${name}/stop`, { method: 'POST' });
+        showToast(`${name} stopped`);
+        setTimeout(() => location.reload(), 500);
+    } catch (e) {
+        showToast('Error: ' + e.message);
+        btn.textContent = 'Stop';
+        btn.disabled = false;
+    }
+}
+
+async function rebuildAsApp(artifactPath, artifactTitle) {
+    const appName = artifactTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = 'Rebuilding...';
+    showToast('Claude is restructuring this as a launchable app...');
+    try {
+        const res = await fetch('/api/apps/rebuild', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: artifactPath, app_name: appName }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+            showToast(`Rebuilt as ~/claude-apps/${appName}/`);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.error || 'Rebuild failed');
+            btn.textContent = 'Rebuild as App';
+            btn.disabled = false;
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message);
+        btn.textContent = 'Rebuild as App';
+        btn.disabled = false;
+    }
 }
 </script>
 {% endblock %}
